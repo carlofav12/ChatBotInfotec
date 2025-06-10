@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
+import { useCart } from "../../contexts/CartContext";
 
 interface Product {
   id: number;
@@ -13,9 +15,20 @@ interface Product {
 }
 
 export const ProductSections: React.FC = () => {
+  const navigate = useNavigate();
+  const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const handleAddToCart = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evitar navegación al hacer clic en el botón
+    addItem(product, 1);
+    // La notificación se maneja en el contexto del carrito
+  };
+
+  const handleProductClick = (productId: number) => {
+    navigate(`/product/${productId}`);
+  };
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -72,11 +85,11 @@ export const ProductSections: React.FC = () => {
       )}
 
       {!loading && !error && (
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {products.map((product) => (
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">          {products.map((product) => (
             <div
               key={product.id}
-              className="bg-white rounded-lg shadow border p-4 flex flex-col"
+              className="bg-white rounded-lg shadow border p-4 flex flex-col cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handleProductClick(product.id)}
             >
               <img
                 src={product.image_url}
@@ -93,7 +106,11 @@ export const ProductSections: React.FC = () => {
                 <span className="text-blue-600 font-bold text-base">
                   S/ {product.price}
                 </span>
-                <button className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+                <button 
+                  onClick={(e) => handleAddToCart(product, e)}
+                  className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+                  title="Agregar al carrito"
+                >
                   <ShoppingCart className="w-4 h-4" />
                 </button>
               </div>

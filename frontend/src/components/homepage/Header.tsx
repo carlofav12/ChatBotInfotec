@@ -1,7 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, User, ShoppingCart, Phone, Mail } from 'lucide-react';
+import { useCart } from '../../contexts/CartContext';
 
 export const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const { state } = useCart();
+
   return (
     <header className="bg-white shadow-sm">
       {/* Top bar */}
@@ -56,10 +61,17 @@ export const Header: React.FC = () => {
             <button className="flex items-center text-gray-700 hover:text-blue-600">
               <User className="w-5 h-5 mr-1" />
               <span className="text-sm">Mi Cuenta</span>
-            </button>
-            <button className="flex items-center text-gray-700 hover:text-blue-600">
+            </button>            <button 
+              onClick={() => navigate('/cart')}
+              className="flex items-center text-gray-700 hover:text-blue-600 relative transition-colors"
+            >
               <ShoppingCart className="w-5 h-5 mr-1" />
-              <span className="text-sm">Carrito (0)</span>
+              <span className="text-sm">Carrito ({state.itemCount})</span>
+              {state.itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-5 h-5 flex items-center justify-center px-1 animate-pulse">
+                  {state.itemCount > 99 ? '99+' : state.itemCount}
+                </span>
+              )}
             </button>
           </div>
         </div>

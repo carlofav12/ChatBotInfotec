@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchProductById } from '../services/api';
 import { useChat } from '../hooks/useChat';
+import { useCart } from '../contexts/CartContext';
 
 interface Product {
   id: number;
@@ -27,10 +28,12 @@ const ProductDetail: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [quantity, setQuantity] = useState<number>(1);
   const [addingToCart, setAddingToCart] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [error, setError] = useState<string | null>(null);  
   // Usar el hook de chat para actualizar el contexto
-  const { updateCurrentPage, updateCurrentProduct } = useChat();  useEffect(() => {
+  const { updateCurrentPage, updateCurrentProduct } = useChat();
+  
+  // Usar el contexto del carrito
+  const { addItem } = useCart();useEffect(() => {
     const getProduct = async () => {
       try {
         setLoading(true);
@@ -62,21 +65,21 @@ const ProductDetail: React.FC = () => {
     if (value > 0 && product && value <= product.stock_quantity) {
       setQuantity(value);
     }
-  };
-
-  const addToCart = async () => {
+  };  const addToCart = async () => {
     if (!product) return;
     
     try {
       setAddingToCart(true);
-      // Aquí iría la llamada a la API para agregar al carrito
-      // Por ahora simulamos un retardo
-      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Mostrar mensaje de éxito
-      alert(`Se agregaron ${quantity} unidad(es) de ${product.name} al carrito`);
+      // Agregar al carrito usando el contexto
+      addItem(product, quantity);
       
-      // Opcional: redirigir al carrito o mantener al usuario en la página
+      // Opcional: redirigir al carrito
+      const goToCart = window.confirm('Producto agregado al carrito. ¿Quieres ver tu carrito ahora?');
+      if (goToCart) {
+        navigate('/cart');
+      }
+      
     } catch (err) {
       console.error('Error al agregar al carrito:', err);
       setError('No se pudo agregar al carrito. Por favor, inténtalo de nuevo.');
