@@ -2,19 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { Minimize2, Phone, Video, MoreVertical, Bot, Settings } from 'lucide-react';
 import { ChatInterface } from './ChatInterface';
 import { ChatSettingsPanel, ChatSettings } from './ChatSettingsPanel';
+import { useChat } from '../hooks/useChat';
 
 export const FloatingChatbot: React.FC = () => {
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [chatSettings, setChatSettings] = useState<ChatSettings>({
-    soundEnabled: true,
-    notificationsEnabled: true,
-    theme: 'auto',
-    fontSize: 'medium',
-    autoScroll: true,
-    showTypingIndicator: true
+  // Obtener el número de mensajes para detectar nuevos mensajes
+  const { messages } = useChat();
+  
+  // Cargar estado minimizado desde localStorage
+  const [isMinimized, setIsMinimized] = useState(() => {
+    const savedState = localStorage.getItem('chatbot_minimized');
+    return savedState ? JSON.parse(savedState) : true; // Por defecto minimizado
   });
+    const [showWelcome, setShowWelcome] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Cargar configuraciones del chat desde localStorage
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => {
+    const savedSettings = localStorage.getItem('chat_settings');
+    return savedSettings ? JSON.parse(savedSettings) : {
+      soundEnabled: true,
+      notificationsEnabled: true,
+      theme: 'auto',
+      fontSize: 'medium',
+      autoScroll: true,
+      showTypingIndicator: true
+    };
+  });
+
+  // Estado para tracking de mensajes no leídos
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastReadMessageId, setLastReadMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -23,14 +40,39 @@ export const FloatingChatbot: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Guardar estado minimizado en localStorage
+  useEffect(() => {
+    localStorage.setItem('chatbot_minimized', JSON.stringify(isMinimized));
+  }, [isMinimized]);
+
   const toggleMinimize = () => {
     setIsMinimized(!isMinimized);
     setShowWelcome(false);
+  };  const handleSettingsChange = (settings: ChatSettings) => {
+    setChatSettings(settings);
+    // Guardar configuraciones en localStorage
+    localStorage.setItem('chat_settings', JSON.stringify(settings));
   };
 
-  const handleSettingsChange = (settings: ChatSettings) => {
-    setChatSettings(settings);
-  };return (
+  // Aplicar configuraciones del chat (para futuras mejoras)
+  useEffect(() => {
+    // Aquí se pueden aplicar las configuraciones como tema, tamaño de fuente, etc.
+    console.log('Chat settings updated:', chatSettings);
+  }, [chatSettings]);
+
+  // Actualizar contador de mensajes no leídos
+  useEffect(() => {
+    if (!isMinimized) {
+      setUnreadCount(0);
+      setLastReadMessageId(messages[messages.length - 1]?.id || null);
+    } else {
+      // Contar mensajes no leídos
+      const count = messages.filter(msg => msg.id !== lastReadMessageId).length;
+      setUnreadCount(count);
+    }
+  }, [messages, isMinimized, lastReadMessageId]);
+
+  return (
     <div className="fixed right-4 bottom-4 z-50">
       {/* Welcome Message - WhatsApp Style */}
       {showWelcome && !isMinimized && (
@@ -60,6 +102,12 @@ export const FloatingChatbot: React.FC = () => {
           </button>
           {/* Online Status Indicator */}
           <div className="absolute top-1 right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+          {/* Unread Messages Indicator */}
+          {unreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {unreadCount}
+            </div>
+          )}
         </div>
       )}
 
@@ -106,8 +154,7 @@ export const FloatingChatbot: React.FC = () => {
                 <Minimize2 className="w-4 h-4" />
               </button>
             </div>
-          </div>          {/* Chat Content */}
-          <div className="flex-1 flex flex-col overflow-hidden relative">
+          </div>          {/* Chat Content */}          <div className="flex-1 flex flex-col overflow-hidden relative">
             {showSettings ? (
               <ChatSettingsPanel
                 isOpen={showSettings}

@@ -171,7 +171,7 @@ async def get_products(
     category_id: Optional[int] = None,
     search: Optional[str] = None,
     skip: int = 0,
-    limit: int = 20,
+    limit: int = 100,  # Aumentado a 100 por defecto
     db: Session = Depends(get_db)
 ):
     """Obtener lista de productos"""

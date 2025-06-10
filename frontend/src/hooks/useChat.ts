@@ -41,24 +41,47 @@ export const useChat = () => {
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [currentProductId, setCurrentProductId] = useState<number | undefined>(undefined);
   const [contextData, setContextData] = useState<Record<string, any>>({});
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      text: '¡Hola! Soy InfoBot, tu asistente virtual de GRUPO INFOTEC. ¿En qué puedo ayudarte hoy? Puedo brindarte información sobre nuestros productos, servicios técnicos y soporte. 🤖💻',
-      isBot: true,
-      timestamp: new Date(),
-    },
-  ]);
+  
+  // Cargar mensajes desde localStorage o usar mensaje inicial
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const savedMessages = localStorage.getItem(`chat_messages_${sessionId}`);
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        // Convertir las fechas de string a Date objects
+        return parsedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+      } catch (error) {
+        console.error('Error parsing saved messages:', error);
+      }
+    }
+    
+    // Mensaje inicial si no hay mensajes guardados
+    return [
+      {
+        id: '1',
+        text: '¡Hola! Soy InfoBot, tu asistente virtual de GRUPO INFOTEC. ¿En qué puedo ayudarte hoy? Puedo brindarte información sobre nuestros productos, servicios técnicos y soporte. 🤖💻',
+        isBot: true,
+        timestamp: new Date(),
+      },
+    ];
+  });
   // Nuevo estado para manejar la escritura del bot
   const [botTypingState, setBotTypingState] = useState<'idle' | 'thinking' | 'typing' | 'searching'>('idle');
-  
-  // Nuevo estado para métricas de conversación
+    // Nuevo estado para métricas de conversación
   const [conversationMetrics, setConversationMetrics] = useState({
     totalMessages: 0,
     averageResponseTime: 0,
     lastActivity: new Date(),
     sessionStartTime: new Date()
   });
+
+  // Efecto para guardar mensajes en localStorage automáticamente
+  useEffect(() => {
+    localStorage.setItem(`chat_messages_${sessionId}`, JSON.stringify(messages));
+  }, [messages, sessionId]);
 
   // Mutation para enviar mensajes
   const sendMessageMutation = useMutation({
@@ -182,17 +205,20 @@ export const useChat = () => {
     sendMessageMutation.mutate(text.trim());
   }, [sendMessageMutation, simulateTyping]);  // Función para limpiar chat
   const clearChat = useCallback(() => {
-    setMessages([
-      {
-        id: '1',
-        text: '¡Hola! Soy InfoBot, tu asistente virtual de GRUPO INFOTEC. ¿En qué puedo ayudarte hoy? Puedo brindarte información sobre nuestros productos, servicios técnicos y soporte. 🤖💻',
-        isBot: true,
-        timestamp: new Date(),
-      },
-    ]);
+    const initialMessage = {
+      id: '1',
+      text: '¡Hola! Soy InfoBot, tu asistente virtual de GRUPO INFOTEC. ¿En qué puedo ayudarte hoy? Puedo brindarte información sobre nuestros productos, servicios técnicos y soporte. 🤖💻',
+      isBot: true,
+      timestamp: new Date(),
+    };
+    
+    setMessages([initialMessage]);
     
     // Limpiar contexto
     setContextData({});
+    
+    // Limpiar localStorage
+    localStorage.removeItem(`chat_messages_${sessionId}`);
     
     // También limpiar en el backend con sessionId específico
     apiService.clearHistory(sessionId).catch(console.error);

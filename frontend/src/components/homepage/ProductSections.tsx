@@ -5,52 +5,108 @@ interface Product {
   id: number;
   name: string;
   price: number;
-  image: string;
+  original_price?: number;
+  image_url: string;
+  rating: number;
+  stock_quantity: number;
+  brand: string;
 }
 
 export const ProductSections: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    fetch("http://localhost:8000/api/products")
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("http://localhost:8000/api/products?limit=100");
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
         const formattedProducts: Product[] = data.map((item: any) => ({
           id: item.id,
           name: item.name,
           price: item.price,
-          image: item.image_url,
+          original_price: item.original_price,
+          image_url: item.image_url,
+          rating: item.rating || 0,
+          stock_quantity: item.stock_quantity || 0,
+          brand: item.brand
         }));
+        
         setProducts(formattedProducts);
-      })
-      .catch((error) => console.error("Error al cargar productos:", error));
-  }, []);
+        setError(null);
+      } catch (error) {
+        console.error("Error al cargar productos:", error);
+        setError("Error al cargar productos. Por favor, intenta de nuevo.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchProducts();
+  }, []);
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {products.map((product) => (
-        <div
-          key={product.id}
-          className="bg-white rounded-lg shadow border p-4 flex flex-col"
-        >
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-48 object-cover rounded"
-          />
-          <h3 className="mt-4 font-semibold text-gray-800 text-sm line-clamp-2">
-            {product.name}
-          </h3>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-blue-600 font-bold text-base">
-              S/ {product.price}
-            </span>
-            <button className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
-              <ShoppingCart className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="max-w-6xl mx-auto px-4 py-10">
+      {loading && (
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {[...Array(8)].map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow border p-4 animate-pulse">
+              <div className="bg-gray-300 h-48 rounded mb-4"></div>
+              <div className="bg-gray-300 h-4 rounded mb-2"></div>
+              <div className="bg-gray-300 h-4 rounded w-2/3"></div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-center">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {products.map((product) => (
+            <div
+              key={product.id}
+              className="bg-white rounded-lg shadow border p-4 flex flex-col"
+            >
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-48 object-cover rounded"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://via.placeholder.com/300x200/e5e7eb/6b7280?text=Sin+Imagen';
+                }}
+              />
+              <h3 className="mt-4 font-semibold text-gray-800 text-sm line-clamp-2">
+                {product.name}
+              </h3>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-blue-600 font-bold text-base">
+                  S/ {product.price}
+                </span>
+                <button className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition">
+                  <ShoppingCart className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && products.length === 0 && (
+        <div className="text-center py-10">
+          <p className="text-gray-500">No se encontraron productos.</p>
+        </div>
+      )}
     </div>
   );
 };
