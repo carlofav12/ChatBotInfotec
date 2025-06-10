@@ -6,15 +6,18 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
 }
 
-/* Variables de colores Infotec */
+/* Variables de colores Infotec - ahora naranja principal */
 :root {
-  --infotec-blue: #2563eb;
+  --infotec-orange: #f97316;
+  --infotec-orange-dark: #ea580c;
   --infotec-indigo: #4f46e5;
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
@@ -88,11 +91,13 @@ body {
 }
 
 .shadow-md {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .shadow-lg {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .rounded {
@@ -175,7 +180,7 @@ body {
 /* Header específico */
 .header {
   background: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -196,7 +201,11 @@ body {
 
 /* Hero section */
 .hero {
-  background: linear-gradient(135deg, var(--infotec-blue) 0%, var(--infotec-indigo) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--infotec-blue) 0%,
+    var(--infotec-indigo) 100%
+  );
   color: white;
   padding: 4rem 0;
 }
@@ -241,12 +250,12 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--infotec-blue);
+  background-color: var(--infotec-orange);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8;
+  background-color: var(--infotec-orange-dark);
 }
 
 .btn-secondary {
@@ -284,7 +293,7 @@ body {
   right: 2rem;
   width: 4rem;
   height: 4rem;
-  background: var(--infotec-blue);
+  background: var(--infotec-orange);
   color: white;
   border: none;
   border-radius: 50%;
@@ -299,7 +308,7 @@ body {
 }
 
 .floating-chatbot-button:hover {
-  background: #1d4ed8;
+  background: var(--infotec-orange-dark);
   transform: scale(1.1);
 }
 
@@ -357,7 +366,11 @@ body {
 }
 
 .chat-widget-header {
-  background: linear-gradient(135deg, var(--infotec-blue) 0%, var(--infotec-indigo) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--infotec-blue) 0%,
+    var(--infotec-indigo) 100%
+  );
   color: white;
   padding: 0.75rem;
   display: flex;
@@ -384,6 +397,11 @@ body {
   border: 2px solid white;
 }
 
+.chat-status-indicator-orange {
+  background: var(--infotec-orange) !important;
+  border: 2px solid white !important;
+}
+
 .chat-welcome-message {
   position: absolute;
   bottom: 100%;
@@ -399,7 +417,7 @@ body {
 }
 
 .chat-welcome-message::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 100%;
   right: 1rem;
@@ -423,18 +441,36 @@ body {
 
 /* Mejoras para el chatbot */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes typing {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-10px); }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
 }
 
 .animate-fade-in {
@@ -449,8 +485,12 @@ body {
   animation: typing 1.4s infinite ease-in-out both;
 }
 
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 /* Estilos para mensajes mejorados */
 .message-bubble {
@@ -478,19 +518,28 @@ body {
 }
 
 .status-indicator::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
   animation: shimmer 2s infinite;
 }
 
 @keyframes shimmer {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Estilos para sugerencias */
@@ -505,7 +554,7 @@ body {
 }
 
 .suggestion-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -533,10 +582,18 @@ body {
 }
 
 /* Clases utilitarias adicionales */
-.translate-x-1 { transform: translateX(0.25rem); }
-.translate-x-5 { transform: translateX(1.25rem); }
-.delay-150 { animation-delay: 150ms; }
-.delay-300 { animation-delay: 300ms; }
+.translate-x-1 {
+  transform: translateX(0.25rem);
+}
+.translate-x-5 {
+  transform: translateX(1.25rem);
+}
+.delay-150 {
+  animation-delay: 150ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
 
 /* Estilos para switches/toggles */
 .toggle-switch {
@@ -584,6 +641,14 @@ input:checked + .toggle-slider:before {
   transform: translateX(1rem);
 }
 
+/* Cambiar todas las clases y utilidades de color verde a naranja Infotec */
+/* bg-green-600 -> bg-[var(--infotec-orange)]
+   bg-green-500 -> bg-[var(--infotec-orange)]
+   hover:bg-green-700 -> hover:bg-[var(--infotec-orange-dark)]
+   border-green-500 -> border-[var(--infotec-orange-dark)]
+   text-green-600 -> color: var(--infotec-orange)
+   etc. */
+
 /* Responsive improvements */
 @media (max-width: 768px) {
   .chat-widget {
@@ -591,12 +656,12 @@ input:checked + .toggle-slider:before {
     height: 100%;
     border-radius: 0;
   }
-  
+
   .suggestion-container {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .suggestion-button {
     width: 100%;
     justify-content: center;
@@ -610,16 +675,65 @@ input:checked + .toggle-slider:before {
     color: #f9fafb;
     border-color: #4b5563;
   }
-  
+
   .quick-reply-button {
     background-color: #374151;
     color: #f9fafb;
     border-color: #4b5563;
   }
-  
+
   .chat-input {
     background-color: #374151;
     color: #f9fafb;
     border-color: #4b5563;
   }
+}
+
+/* Tema oscuro tipo Facebook/Edge: fondo gris oscuro, textos claros, acento naranja */
+.chatbot-dark,
+.chatbot-dark * {
+  background-color: #18191a !important;
+  color: #e4e6eb !important;
+  border-color: #242526 !important;
+}
+.chatbot-dark .bg-white,
+.chatbot-dark .bg-gray-100,
+.chatbot-dark .bg-gray-200 {
+  background-color: #242526 !important;
+}
+.chatbot-dark .bg-gray-800,
+.chatbot-dark .bg-gray-700 {
+  background-color: #18191a !important;
+}
+.chatbot-dark .text-gray-800,
+.chatbot-dark .text-gray-700 {
+  color: #e4e6eb !important;
+}
+.chatbot-dark .border-gray-300,
+.chatbot-dark .border-gray-200 {
+  border-color: #242526 !important;
+}
+.chatbot-dark input,
+.chatbot-dark textarea {
+  background-color: #242526 !important;
+  color: #e4e6eb !important;
+  border-color: #3a3b3c !important;
+}
+.chatbot-dark .px-3.py-2.bg-orange-500 {
+  background-color: var(--infotec-orange) !important;
+  color: #fff !important;
+  border-color: var(--infotec-orange-dark) !important;
+}
+.chatbot-dark .px-3.py-2.bg-gray-50 {
+  background-color: #242526 !important;
+  color: #e4e6eb !important;
+  border-color: #3a3b3c !important;
+}
+
+/* Tamaños de fuente para el chat */
+.chatbot-font-small {
+  font-size: 13px !important;
+}
+.chatbot-font-large {
+  font-size: 18px !important;
 }

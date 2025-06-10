@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Bot, ThumbsUp, ThumbsDown, Copy, RotateCcw } from 'lucide-react';
-import { ChatMessage } from '../hooks/useChat';
-import ProductCarousel from './ProductCarousel';
+import React, { useState } from "react";
+import { Bot, ThumbsUp, ThumbsDown, Copy, RotateCcw } from "lucide-react";
+import { ChatMessage } from "../hooks/useChat";
+import ProductCarousel from "./ProductCarousel";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -9,18 +9,18 @@ interface MessageBubbleProps {
   onRegenerateResponse?: (messageId: string) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
-  message, 
+export const MessageBubble: React.FC<MessageBubbleProps> = ({
+  message,
   onSendQuickReply,
-  onRegenerateResponse 
+  onRegenerateResponse,
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -30,37 +30,37 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Error al copiar:', err);
+      console.error("Error al copiar:", err);
     }
   };
 
   const getQuickReplies = () => {
     if (!message.isBot || message.isLoading) return [];
-    
+
     const lowerText = message.text.toLowerCase();
-    
-    if (lowerText.includes('producto') || lowerText.includes('laptop') || lowerText.includes('computadora')) {
+
+    if (
+      lowerText.includes("producto") ||
+      lowerText.includes("laptop") ||
+      lowerText.includes("computadora")
+    ) {
       return [
         "Mostrar más opciones",
         "¿Cuál recomiendas?",
         "Ver especificaciones",
-        "Precios y ofertas"
+        "Precios y ofertas",
       ];
-    } else if (lowerText.includes('ayuda') || lowerText.includes('soporte')) {
-      return [
-        "Contactar soporte",
-        "Ver horarios",
-        "Preguntas frecuentes"
-      ];
-    } else if (lowerText.includes('hola') || lowerText.includes('infobot')) {
+    } else if (lowerText.includes("ayuda") || lowerText.includes("soporte")) {
+      return ["Contactar soporte", "Ver horarios", "Preguntas frecuentes"];
+    } else if (lowerText.includes("hola") || lowerText.includes("infobot")) {
       return [
         "Ver productos",
         "Necesito ayuda",
         "Información de la empresa",
-        "Servicios técnicos"
+        "Servicios técnicos",
       ];
     }
-    
+
     return [];
   };
 
@@ -69,19 +69,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div
       className={`flex w-full mb-2 ${
-        message.isBot ? 'justify-start' : 'justify-end'
+        message.isBot ? "justify-start" : "justify-end"
       }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
       <div
         className={`flex max-w-[80%] ${
-          message.isBot ? 'flex-row' : 'flex-row-reverse'
+          message.isBot ? "flex-row" : "flex-row-reverse"
         }`}
       >
         {/* Avatar - only for bot messages */}
         {message.isBot && (
-          <div className="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-2 mt-1">
+          <div className="flex-shrink-0 w-8 h-8 bg-[var(--infotec-orange)] rounded-full flex items-center justify-center mr-2 mt-1">
             <Bot size={16} className="text-white" />
           </div>
         )}
@@ -92,25 +92,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <div
               className={`px-3 py-2 rounded-lg shadow-sm ${
                 message.isBot
-                  ? 'bg-white text-gray-800 border border-gray-200'
-                  : 'bg-green-500 text-white'
-              } ${message.isLoading ? 'animate-pulse' : ''}`}
+                  ? "bg-white text-gray-800 border border-gray-200"
+                  : "bg-green-500 text-white"
+              } ${message.isLoading ? "animate-pulse" : ""}`}
               style={{
-                borderRadius: message.isBot 
-                  ? '18px 18px 18px 4px' 
-                  : '18px 18px 4px 18px'
+                borderRadius: message.isBot
+                  ? "18px 18px 18px 4px"
+                  : "18px 18px 4px 18px",
               }}
             >
               {message.isLoading ? (
                 <div className="flex items-center space-x-2">
                   {/* Indicador visual basado en el tipo de acción */}
-                  {message.typingState === 'thinking' ? (
+                  {message.typingState === "thinking" ? (
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-150" />
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse delay-300" />
                     </div>
-                  ) : message.typingState === 'searching' ? (
+                  ) : message.typingState === "searching" ? (
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-orange-400 rounded-full animate-spin" />
                       <div className="w-2 h-2 bg-orange-400 rounded-full animate-ping delay-100" />
@@ -132,24 +132,22 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
                     {message.text}
                   </p>
-                  
+
                   {/* Mostrar productos si existen */}
                   {message.products && message.products.length > 0 && (
                     <div className="mt-2">
                       <ProductCarousel products={message.products} />
                     </div>
                   )}
-                  
+
                   {/* Timestamp inside bubble */}
                   <div
                     className={`text-xs mt-1 ${
-                      message.isBot ? 'text-gray-500' : 'text-green-100'
+                      message.isBot ? "text-gray-500" : "text-green-100"
                     } flex justify-end`}
                   >
                     {formatTime(message.timestamp)}
-                    {!message.isBot && (
-                      <span className="ml-1">✓✓</span>
-                    )}
+                    {!message.isBot && <span className="ml-1">✓✓</span>}
                   </div>
                 </div>
               )}

@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
-import { Settings, Volume2, VolumeX, Bell, BellOff, Palette, Monitor } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  Settings,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellOff,
+  Palette,
+  Monitor,
+} from "lucide-react";
 
 interface ChatSettingsProps {
   isOpen: boolean;
@@ -10,8 +18,8 @@ interface ChatSettingsProps {
 export interface ChatSettings {
   soundEnabled: boolean;
   notificationsEnabled: boolean;
-  theme: 'light' | 'dark' | 'auto';
-  fontSize: 'small' | 'medium' | 'large';
+  theme: "light" | "dark" | "auto";
+  fontSize: "small" | "medium" | "large";
   autoScroll: boolean;
   showTypingIndicator: boolean;
 }
@@ -19,29 +27,29 @@ export interface ChatSettings {
 const defaultSettings: ChatSettings = {
   soundEnabled: true,
   notificationsEnabled: true,
-  theme: 'auto',
-  fontSize: 'medium',
+  theme: "auto",
+  fontSize: "medium",
   autoScroll: true,
-  showTypingIndicator: true
+  showTypingIndicator: true,
 };
 
-export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSettingsChange 
+export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
+  isOpen,
+  onClose,
+  onSettingsChange,
 }) => {
   const [settings, setSettings] = useState<ChatSettings>(() => {
-    const saved = localStorage.getItem('chatSettings');
+    const saved = localStorage.getItem("chatSettings");
     return saved ? JSON.parse(saved) : defaultSettings;
   });
 
   const updateSetting = <K extends keyof ChatSettings>(
-    key: K, 
+    key: K,
     value: ChatSettings[K]
   ) => {
     const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
-    localStorage.setItem('chatSettings', JSON.stringify(newSettings));
+    localStorage.setItem("chatSettings", JSON.stringify(newSettings));
     onSettingsChange(newSettings);
   };
 
@@ -50,14 +58,14 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
   return (
     <div className="absolute top-0 left-0 right-0 bottom-0 bg-white z-50 flex flex-col">
       {/* Header */}
-      <div className="bg-green-600 text-white p-4 flex items-center justify-between">
+      <div className="bg-[var(--infotec-orange)] text-white p-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Settings className="w-5 h-5" />
           <h2 className="font-medium">Configuración del Chat</h2>
         </div>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-green-700 rounded transition-colors"
+          className="p-1 hover:bg-[var(--infotec-orange-dark)] rounded transition-colors"
         >
           ×
         </button>
@@ -73,21 +81,25 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   {settings.soundEnabled ? (
-                    <Volume2 className="w-4 h-4 text-green-600" />
+                    <Volume2 className="w-4 h-4 text-[var(--infotec-orange)]" />
                   ) : (
                     <VolumeX className="w-4 h-4 text-gray-400" />
                   )}
                   <span className="text-sm">Sonidos</span>
                 </div>
                 <button
-                  onClick={() => updateSetting('soundEnabled', !settings.soundEnabled)}
+                  onClick={() =>
+                    updateSetting("soundEnabled", !settings.soundEnabled)
+                  }
                   className={`w-10 h-6 rounded-full transition-colors ${
-                    settings.soundEnabled ? 'bg-green-500' : 'bg-gray-300'
+                    settings.soundEnabled
+                      ? "bg-[var(--infotec-orange)]"
+                      : "bg-gray-300"
                   }`}
                 >
                   <div
                     className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                      settings.soundEnabled ? 'translate-x-5' : 'translate-x-1'
+                      settings.soundEnabled ? "translate-x-5" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -96,21 +108,30 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   {settings.notificationsEnabled ? (
-                    <Bell className="w-4 h-4 text-green-600" />
+                    <Bell className="w-4 h-4 text-[var(--infotec-orange)]" />
                   ) : (
                     <BellOff className="w-4 h-4 text-gray-400" />
                   )}
                   <span className="text-sm">Notificaciones</span>
                 </div>
                 <button
-                  onClick={() => updateSetting('notificationsEnabled', !settings.notificationsEnabled)}
+                  onClick={() =>
+                    updateSetting(
+                      "notificationsEnabled",
+                      !settings.notificationsEnabled
+                    )
+                  }
                   className={`w-10 h-6 rounded-full transition-colors ${
-                    settings.notificationsEnabled ? 'bg-green-500' : 'bg-gray-300'
+                    settings.notificationsEnabled
+                      ? "bg-[var(--infotec-orange)]"
+                      : "bg-gray-300"
                   }`}
                 >
                   <div
                     className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                      settings.notificationsEnabled ? 'translate-x-5' : 'translate-x-1'
+                      settings.notificationsEnabled
+                        ? "translate-x-5"
+                        : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -127,17 +148,17 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
                   Tema
                 </label>
                 <div className="flex space-x-2">
-                  {(['light', 'dark', 'auto'] as const).map((theme) => (
+                  {(["light", "dark"] as const).map((theme) => (
                     <button
                       key={theme}
-                      onClick={() => updateSetting('theme', theme)}
+                      onClick={() => updateSetting("theme", theme)}
                       className={`px-3 py-2 text-xs rounded-md border ${
                         settings.theme === theme
-                          ? 'bg-green-100 border-green-500 text-green-700'
-                          : 'bg-gray-50 border-gray-300 text-gray-700'
+                          ? "bg-orange-500 border-orange-600 text-white"
+                          : "bg-gray-50 border-gray-300 text-gray-700"
                       }`}
                     >
-                      {theme === 'light' ? 'Claro' : theme === 'dark' ? 'Oscuro' : 'Auto'}
+                      {theme === "light" ? "Claro" : "Oscuro"}
                     </button>
                   ))}
                 </div>
@@ -148,17 +169,21 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
                   Tamaño de fuente
                 </label>
                 <div className="flex space-x-2">
-                  {(['small', 'medium', 'large'] as const).map((size) => (
+                  {(["small", "medium", "large"] as const).map((size) => (
                     <button
                       key={size}
-                      onClick={() => updateSetting('fontSize', size)}
+                      onClick={() => updateSetting("fontSize", size)}
                       className={`px-3 py-2 text-xs rounded-md border ${
                         settings.fontSize === size
-                          ? 'bg-green-100 border-green-500 text-green-700'
-                          : 'bg-gray-50 border-gray-300 text-gray-700'
+                          ? "bg-orange-500 border-orange-600 text-white"
+                          : "bg-gray-50 border-gray-300 text-gray-700"
                       }`}
                     >
-                      {size === 'small' ? 'Pequeño' : size === 'medium' ? 'Mediano' : 'Grande'}
+                      {size === "small"
+                        ? "Pequeño"
+                        : size === "medium"
+                        ? "Mediano"
+                        : "Grande"}
                     </button>
                   ))}
                 </div>
@@ -173,14 +198,18 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm">Desplazamiento automático</span>
                 <button
-                  onClick={() => updateSetting('autoScroll', !settings.autoScroll)}
+                  onClick={() =>
+                    updateSetting("autoScroll", !settings.autoScroll)
+                  }
                   className={`w-10 h-6 rounded-full transition-colors ${
-                    settings.autoScroll ? 'bg-green-500' : 'bg-gray-300'
+                    settings.autoScroll
+                      ? "bg-[var(--infotec-orange)]"
+                      : "bg-gray-300"
                   }`}
                 >
                   <div
                     className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                      settings.autoScroll ? 'translate-x-5' : 'translate-x-1'
+                      settings.autoScroll ? "translate-x-5" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -189,14 +218,23 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm">Mostrar indicador de escritura</span>
                 <button
-                  onClick={() => updateSetting('showTypingIndicator', !settings.showTypingIndicator)}
+                  onClick={() =>
+                    updateSetting(
+                      "showTypingIndicator",
+                      !settings.showTypingIndicator
+                    )
+                  }
                   className={`w-10 h-6 rounded-full transition-colors ${
-                    settings.showTypingIndicator ? 'bg-green-500' : 'bg-gray-300'
+                    settings.showTypingIndicator
+                      ? "bg-[var(--infotec-orange)]"
+                      : "bg-gray-300"
                   }`}
                 >
                   <div
                     className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                      settings.showTypingIndicator ? 'translate-x-5' : 'translate-x-1'
+                      settings.showTypingIndicator
+                        ? "translate-x-5"
+                        : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -215,7 +253,7 @@ export const ChatSettingsPanel: React.FC<ChatSettingsProps> = ({
           <button
             onClick={() => {
               setSettings(defaultSettings);
-              localStorage.removeItem('chatSettings');
+              localStorage.removeItem("chatSettings");
               onSettingsChange(defaultSettings);
             }}
             className="text-xs text-gray-500 hover:text-gray-700 underline"
