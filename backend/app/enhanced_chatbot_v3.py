@@ -1,4 +1,4 @@
-# Enhanced chatbot with improved error handling and responses - NUEVA VERSION MEJORADA
+# Enhanced chatbot with improved conversation flow and responses - VERSION 3 MEJORADA
 import google.generativeai as genai
 from typing import List, Dict, Tuple, Optional, Union, Any
 from datetime import datetime
@@ -14,7 +14,7 @@ from app.models import Product as ProductModel, Cart as CartModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class EnhancedInfotecChatbotV2:
+class EnhancedInfotecChatbotV3:
     def __init__(self, api_key: str):
         """Inicializar el chatbot mejorado con flujo de conversación inteligente"""
         genai.configure(api_key=api_key)
@@ -68,25 +68,6 @@ class EnhancedInfotecChatbotV2:
 
 ¿Te gustaría conocer más detalles sobre alguna opción de envío?"""
             },
-            "otros_modelos": {
-                "patterns": ["otros modelos", "otras opciones", "más modelos", "diferentes modelos", "qué más tienen"],
-                "response": """🔍 **¡Por supuesto! Tenemos una amplia variedad:**
-
-💻 **Categorías disponibles:**
-• Laptops Gaming (ASUS ROG, MSI, HP Omen)
-• Laptops Empresariales (Dell Latitude, HP EliteBook) 
-• Laptops Estudiantiles (Lenovo IdeaPad, ASUS VivoBook)
-• Laptops 2-en-1 (HP Envy x360, Lenovo Yoga)
-• All-in-One (HP, Dell, Lenovo)
-• PCs Gaming personalizadas
-
-🏷️ **Rangos de precio:**
-• Básicas: S/800 - S/1,500
-• Intermedias: S/1,500 - S/3,000  
-• Premium: S/3,000 - S/8,000+
-
-¿Qué tipo específico te interesa? Puedo mostrarte opciones según tu presupuesto y uso."""
-            },
             "garantia": {
                 "patterns": ["garantía", "garantia", "garantizada", "cobertura", "servicio técnico"],
                 "response": """🛡️ **Garantía Grupo INFOTEC:**
@@ -104,10 +85,6 @@ class EnhancedInfotecChatbotV2:
 • WhatsApp: +51 999-888-777
 • Email: soporte@grupoinfotec.pe
 • Horario: Lun-Sáb 8am-8pm
-
-💡 **Garantía extendida disponible:**
-• +1 año adicional por solo S/99
-• Incluye mantenimiento preventivo
 
 ¿Necesitas más información sobre la garantía?"""
             },
@@ -127,12 +104,6 @@ class EnhancedInfotecChatbotV2:
 • 3 cuotas sin intereses (cualquier monto)
 • 6 cuotas sin intereses (compras +S/1,500)
 
-📱 **Pago digital:**
-• Yape, Plin, BCP, Interbank
-• Transferencias bancarias
-
-*Aplican términos y condiciones del banco emisor.
-
 ¿Qué opción te conviene más?"""
             }
         }
@@ -151,8 +122,26 @@ class EnhancedInfotecChatbotV2:
         
         return None
 
-    def extract_entities(self, message: str) -> Dict[str, Any]:
-        """Extraer entidades del mensaje usando regex y IA - MEJORADO"""
+    def get_last_discussed_product(self, conversation_history: List[Dict[str, Any]]) -> Optional[str]:
+        """Obtener el último producto específico discutido en la conversación"""
+        # Buscar hacia atrás en el historial los productos mostrados o especificaciones vistas
+        for conv in reversed(conversation_history):
+            # Si mostró especificaciones, extraer el producto del mensaje del bot
+            if "📋 **Especificaciones Técnicas -" in conv.get("bot_response", ""):
+                # Extraer nombre del producto de la respuesta de especificaciones
+                match = re.search(r"📋 \*\*Especificaciones Técnicas - (.+?)\*\*", conv["bot_response"])
+                if match:
+                    return match.group(1).strip()
+            
+            # Si el usuario mencionó un producto específico
+            entities = conv.get("entities", {})
+            if entities.get("producto_especifico"):
+                return entities["producto_especifico"]
+        
+        return None
+
+    def extract_entities(self, message: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Extraer entidades del mensaje usando regex y IA - MEJORADO con contexto"""
         entities: Dict[str, Any] = {
             "_original_message": message  # Guardar mensaje original para contexto
         }
@@ -203,19 +192,33 @@ class EnhancedInfotecChatbotV2:
         
         for use_case, keywords in use_cases.items():
             if any(keyword in message_lower for keyword in keywords):
-                            entities["uso"] = use_case
-            break
-          # Detectar intención de agregar al carrito
-        cart_patterns = ["agregar", "añadir", "carrito", "comprar", "llevar", "quiero", "necesito", "agrega", "puedes agregar"]
+                entities["uso"] = use_case
+                break
+        
+        # Detectar intención de agregar al carrito - MEJORADO con referencias contextuales
+        cart_patterns = ["agregar", "añadir", "carrito", "comprar", "llevar", "quiero", "necesito", "agrega", 
+                        "puedes agregar", "agregarlo", "añadirlo", "comprarlo", "lo quiero", "lo agrego", 
+                        "puedes agregarlo", "me lo das", "lo llevo"]
         if any(pattern in message_lower for pattern in cart_patterns):
             entities["accion"] = "agregar_carrito"
-          # Detectar solicitud de especificaciones - MEJORADO
-        spec_patterns = ["especificaciones", "specs", "características", "detalles", "información detallada", "especificacion", "que especificacion", "qué especificación"]
+            
+            # Si dice "agregarlo", "comprarlo", etc. sin especificar producto, buscar en historial
+            contextual_refs = ["agregarlo", "añadirlo", "comprarlo", "lo quiero", "este", "esa", "eso", "la anterior"]
+            if any(ref in message_lower for ref in contextual_refs) and conversation_history:
+                last_product = self.get_last_discussed_product(conversation_history)
+                if last_product:
+                    entities["producto_especifico"] = last_product
+        
+        # Detectar solicitud de especificaciones - MEJORADO
+        spec_patterns = ["especificaciones", "specs", "características", "detalles", "información detallada", 
+                        "especificacion", "que especificacion", "qué especificación", "info", "más info"]
         if any(pattern in message_lower for pattern in spec_patterns):
             entities["accion"] = "ver_especificaciones"
         
         # Detectar solicitud de recomendación - NUEVO
-        recommend_patterns = ["recomiendas", "recomendación", "recomendaciones", "cual recomiendas", "qué recomiendas", "cual me recomiendas", "que me recomiendas", "cual es mejor", "cuál es mejor", "cual eliges", "sugieres"]
+        recommend_patterns = ["recomiendas", "recomendación", "recomendaciones", "cual recomiendas", 
+                             "qué recomiendas", "cual me recomiendas", "que me recomiendas", "cual es mejor", 
+                             "cuál es mejor", "cual eliges", "sugieres", "recomiendan"]
         if any(pattern in message_lower for pattern in recommend_patterns):
             entities["accion"] = "recomendar"
         
@@ -228,29 +231,32 @@ class EnhancedInfotecChatbotV2:
         """Extraer nombre específico del producto mencionado"""
         # Patrones comunes de productos específicos - MEJORADO
         product_patterns = [
+            # ASUS patterns - AMPLIADO
+            r"asus\s+vivobook\s+go\s+15\s+e1504fa[\s\w]*",
+            r"asus\s+vivobook\s+go\s+15[\s\w]*",
+            r"asus\s+rog\s+strix\s+g15[\s\w]*",
+            r"asus\s+vivobook\s+16x[\s\w]*",
+            r"asus\s+vivobook[\s\w]*",
+            
             # HP patterns - AMPLIADO
             r"hp\s+pavilion\s+gaming[\s\w]*",
             r"hp\s+pavilion[\s\w]*",
-            r"hp\s+15-fc0048la",
-            r"hp\s+14-ep0011la",
-            r"hp\s+envy\s+x360",
+            r"hp\s+15-fc0048la[\s\w]*",
+            r"hp\s+14-ep0011la[\s\w]*",
+            r"hp\s+envy\s+x360[\s\w]*",
             r"hp\s+omen[\s\w]*",
             
             # Lenovo patterns
             r"lenovo\s+legion\s+5[\s\w]*",
-            r"lenovo\s+v15\s+g4\s+amn\s+ryzen\s+5",
-            r"lenovo\s+v15\s+g4\s+i3",
-            r"lenovo\s+ideapad\s+slim\s+3",
-            r"lenovo\s+yoga\s+7",
-            r"lenovo\s+ideapad\s+flex\s+5",
-            
-            # ASUS patterns
-            r"asus\s+rog\s+strix\s+g15[\s\w]*",
-            r"asus\s+vivobook\s+go\s+15",
-            r"asus\s+vivobook\s+15\s+flip",
+            r"lenovo\s+v15\s+g4\s+amn[\s\w]*",
+            r"lenovo\s+v15\s+g4\s+i3[\s\w]*",
+            r"lenovo\s+ideapad\s+flex\s+5[\s\w]*",
+            r"lenovo\s+yoga\s+7[\s\w]*",
+            r"lenovo\s+v15[\s\w]*",
             
             # Dell patterns
-            r"dell\s+inspiron\s+3520"
+            r"dell\s+inspiron\s+3520[\s\w]*",
+            r"dell\s+inspiron[\s\w]*"
         ]
         
         for pattern in product_patterns:
@@ -312,7 +318,7 @@ class EnhancedInfotecChatbotV2:
             if entities["uso"] == "gaming":
                 search_terms.append("gaming")
             elif entities["uso"] == "universidad":
-                        search_terms.append("estudiante")
+                search_terms.append("estudiante")
             elif entities["uso"] == "trabajo":
                 search_terms.append("empresarial")
         
@@ -392,21 +398,6 @@ class EnhancedInfotecChatbotV2:
                     logger.info(f"Encontrado por palabras clave: {product.name}")
                     return ProductModel.from_orm(product)
             
-            # Estrategia 3: Buscar por marcas y modelos específicos
-            brand_searches = {
-                "hp pavilion": "HP Pavilion",
-                "lenovo legion": "Legion",
-                "asus rog": "ROG",
-                "dell inspiron": "Inspiron"
-            }
-            
-            for search_term, db_term in brand_searches.items():
-                if search_term in clean_name:
-                    product = db.query(Product).filter(Product.name.ilike(f"%{db_term}%")).first()
-                    if product:
-                        logger.info(f"Encontrado por búsqueda de marca: {product.name}")
-                        return ProductModel.from_orm(product)
-            
             logger.warning(f"No se encontró producto para: '{product_name}'")
             return None
             
@@ -429,8 +420,6 @@ class EnhancedInfotecChatbotV2:
         
         # Marca y modelo
         spec_response += f"🏢 **Marca:** {product.brand}\n"
-        if hasattr(product, 'model') and product.model:
-            spec_response += f"📱 **Modelo:** {product.model}\n"
         
         # Descripción técnica (extraer specs desde el nombre)
         name_lower = product.name.lower()
@@ -468,6 +457,8 @@ class EnhancedInfotecChatbotV2:
             spec_response += f"🖥️ **Pantalla:** 15.6 pulgadas\n"
         elif "14" in name_lower:
             spec_response += f"🖥️ **Pantalla:** 14 pulgadas\n"
+        elif "16" in name_lower:
+            spec_response += f"🖥️ **Pantalla:** 16 pulgadas\n"
         
         if "fhd" in name_lower:
             spec_response += f"📺 **Resolución:** Full HD (1920x1080)\n"
@@ -481,9 +472,6 @@ class EnhancedInfotecChatbotV2:
         
         if "2 en 1" in name_lower or "2en1" in name_lower:
             spec_response += f"🔄 **Convertible:** Laptop 2 en 1\n"
-        
-        # Descripción adicional        if hasattr(product, 'description') and product.description:
-            spec_response += f"\n📝 **Descripción:**\n{product.description}\n"
         
         spec_response += f"\n💡 **¿Te interesa este modelo? ¡Puedo agregarlo a tu carrito!**"
         
@@ -518,19 +506,19 @@ class EnhancedInfotecChatbotV2:
             return False
 
     def generate_product_response(self, products: List[ProductModel], use_case: Optional[str] = None) -> str:
-        """Generar respuesta con productos - MEJORADO"""
+        """Generar respuesta con productos - MEJORADO con respuestas más concisas"""
         if not products:
-            return "No encontré productos que coincidan con tu búsqueda. ¿Podrías ser más específico?"
-          # Mensaje personalizado según el caso de uso
+            return "No encontré productos que coincidan con tu búsqueda. ¿Podrías darme más detalles sobre lo que buscas? 😊"
+        
+        # Mensaje personalizado según el caso de uso
         intro_messages = {
             "gaming": "🎮 ¡Perfecto para gaming! Aquí tienes las mejores opciones:",
-            "universidad": "🎓 Ideales para tus estudios universitarios:",
-            "trabajo": "💼 Excelentes opciones para uso profesional:",
-            "programacion": "👨‍💻 Perfectas para desarrollo y programación:",
-            "basico": "💻 Opciones ideales para uso básico:",
+            "universidad": "🎓 Ideales para tus estudios:",
+            "trabajo": "💼 Excelentes para uso profesional:",
+            "programacion": "👨‍💻 Perfectas para programación:",
+            "basico": "💻 Ideales para uso básico:",
         }
         
-        # Corregir el error de tipado usando una condición explícita
         if use_case and use_case in intro_messages:
             intro = intro_messages[use_case]
         else:
@@ -552,10 +540,7 @@ class EnhancedInfotecChatbotV2:
                 
                 response += f"**{i+1}. {product.name}**\n"
                 response += f"💰 **S/ {product.price:.2f}**{discount_info}\n"
-                response += f"📦 {stock_status}\n"
-                if hasattr(product, 'rating') and product.rating:
-                    response += f"⭐ {product.rating}/5\n"
-                response += "\n"
+                response += f"📦 {stock_status}\n\n"
                 
             except Exception as e:
                 logger.warning(f"Error formateando producto {product.id}: {e}")
@@ -565,42 +550,59 @@ class EnhancedInfotecChatbotV2:
         if len(products) > 3:
             response += f"💡 *Y {len(products) - 3} opciones más disponibles*\n\n"
         
-        response += "¿Te interesa alguna opción específica? ¡Puedo darte más detalles! 😊"
+        response += "¿Te interesa alguna opción específica? ¡Puedo darte más detalles o agregarlo al carrito! 😊"
         
         return response
 
     def generate_general_response(self, message: str, context_str: str = "") -> str:
-        """Generar respuesta general usando IA - MEJORADO con mejor prompt"""
+        """Generar respuesta general usando IA - MEJORADO para conversaciones más amigables"""
         try:
             # Primero verificar respuestas preparadas
             prepared_response = self.check_prepared_response(message)
             if prepared_response:
                 return prepared_response
             
-            # Usar IA para respuestas más complejas
+            # Detectar tipo de mensaje para respuesta personalizada
+            message_lower = message.lower()
+            
+            # Respuestas específicas para saludos
+            if any(greeting in message_lower for greeting in ["hola", "buenas", "buenos dias", "buenas tardes", "buenas noches", "hey", "hi"]):
+                return "¡Hola! 👋 Soy InfoBot de GRUPO INFOTEC. Me da mucho gusto saludarte. 😊 Estamos aquí para ayudarte con laptops, PCs y todo lo que necesites en tecnología. ¿En qué puedo asistirte hoy? ✨"
+            
+            # Respuestas para preguntas casuales
+            if any(casual in message_lower for casual in ["que tal", "como estas", "como va", "que hay", "que tal el dia"]):
+                return "¡Todo excelente por aquí! 😄 Gracias por preguntar. Estoy listo para ayudarte con cualquier consulta sobre nuestros productos. En GRUPO INFOTEC tenemos las mejores ofertas en laptops y PCs. ¿Hay algo específico que te interese? 💻"
+            
+            # Respuestas para agradecimientos
+            if any(thanks in message_lower for thanks in ["gracias", "muchas gracias", "te agradezco"]):
+                return "¡De nada! 😊 Ha sido un placer ayudarte. Recuerda que en GRUPO INFOTEC estamos disponibles 24/7 para cualquier consulta. ¡Que tengas un excelente día! ✨"
+            
+            # Usar IA para respuestas más complejas con prompt mejorado
             prompt = f"""
             Eres InfoBot, el asistente virtual amigable de GRUPO INFOTEC, empresa peruana líder en tecnología.
             
             INFORMACIÓN DE LA EMPRESA:
             - Nombre: GRUPO INFOTEC
-            - Especialidad: Laptops, PCs, componentes, soporte técnico
-            - Ubicación: Lima, Perú
-            - Experiencia: +15 años en el mercado
-            - Servicios: Venta, soporte 24/7, garantías, financiamiento
+            - Especialidad: Laptops, PCs gaming, componentes, soporte técnico especializado
+            - Ubicación: Lima, Perú (con envíos a todo el país)
+            - Experiencia: +15 años en el mercado peruano
+            - Servicios: Venta de equipos, soporte 24/7, garantías extendidas, financiamiento
             
             INSTRUCCIONES IMPORTANTES:
-            1. Responde de manera amigable, profesional y concisa (máximo 200 palabras)
-            2. Usa emojis para hacer las respuestas más amigables
-            3. Si preguntan sobre productos, sugiere que pueden mostrar opciones específicas
-            4. Si preguntan sobre envíos, garantías o financiamiento, da información útil
-            5. Promociona los servicios de GRUPO INFOTEC cuando sea relevante
-            6. NUNCA inventes información técnica específica
+            1. Responde de manera amigable y conversacional (100-150 palabras máximo)
+            2. Usa emojis moderadamente para hacer las respuestas más expresivas
+            3. Mantén un tono entusiasta pero profesional
+            4. Si preguntan sobre productos, ofrece ayuda específica
+            5. Menciona beneficios de GRUPO INFOTEC cuando sea relevante
+            6. Haz preguntas de seguimiento para mantener la conversación
+            7. NUNCA inventes especificaciones técnicas
+            8. Termina siempre invitando a continuar la conversación
             
             CONTEXTO DE CONVERSACIÓN: {context_str}
             
             MENSAJE DEL USUARIO: {message}
             
-            Responde como InfoBot de GRUPO INFOTEC:
+            Responde como InfoBot de GRUPO INFOTEC de manera conversacional:
             """
             
             response = self.model.generate_content(prompt)
@@ -608,7 +610,7 @@ class EnhancedInfotecChatbotV2:
             
         except Exception as e:
             logger.error(f"Error generando respuesta general: {e}")
-            return "¡Hola! Soy InfoBot de GRUPO INFOTEC 🤖. Estoy aquí para ayudarte con información sobre nuestros productos, servicios técnicos y más. ¿En qué puedo asistirte hoy?"
+            return "¡Hola! 👋 Soy InfoBot de GRUPO INFOTEC. Estoy aquí para ayudarte con información sobre nuestros productos y servicios. ¿En qué puedo asistirte hoy? 😊"
 
     def get_conversation_history(self, session_id: str) -> List[Dict[str, Any]]:
         """Obtener historial de conversación para una sesión específica"""
@@ -637,12 +639,12 @@ class EnhancedInfotecChatbotV2:
 
     def process_message(self, message: str, db: Session, user_id: Optional[int] = None, 
                        session_id: str = "default") -> Dict[str, Any]:
-        """Procesar mensaje del usuario - MEJORADO con mejor error handling"""
+        """Procesar mensaje del usuario - MEJORADO con mejor manejo de contexto"""
         try:
             # Validar entrada
             if not message or not message.strip():
                 return {
-                    "response": "¡Hola! Soy InfoBot de GRUPO INFOTEC 🤖. ¿En qué puedo ayudarte hoy?",
+                    "response": "¡Hola! 👋 Soy InfoBot de GRUPO INFOTEC. ¿En qué puedo ayudarte hoy?",
                     "intent": "saludo",
                     "entities": {},
                     "products": [],
@@ -652,9 +654,10 @@ class EnhancedInfotecChatbotV2:
             # Obtener historial de conversación
             conversation_history = self.get_conversation_history(session_id)
             
-            # Extraer entidades del mensaje
-            entities = self.extract_entities(message)
-              # Determinar si debe mostrar productos
+            # Extraer entidades del mensaje con contexto
+            entities = self.extract_entities(message, conversation_history)
+            
+            # Determinar si debe mostrar productos
             should_search = self.should_show_products(entities, conversation_history)
             
             intent = "buscar_producto" if should_search else "conversacion_general"
@@ -687,7 +690,7 @@ class EnhancedInfotecChatbotV2:
                                 bot_response += f"📦 **Cantidad:** {quantity}\n"
                                 bot_response += f"💰 **Precio:** S/ {product.price:.2f}\n"
                                 bot_response += f"💳 **Total:** S/ {product.price * quantity:.2f}\n\n"
-                                bot_response += "¿Te gustaría agregar algo más o proceder con la compra?"
+                                bot_response += "¿Te gustaría ver más productos o proceder con la compra? 😊"
                             else:
                                 bot_response = f"❌ Lo siento, no pude agregar **{product.name}** al carrito. Podría estar agotado o no tener suficiente stock."
                             products = [product]
@@ -759,7 +762,8 @@ class EnhancedInfotecChatbotV2:
             logger.error(f"Error procesando mensaje: {e}")
             return {
                 "response": "Disculpa, tuve un problema técnico. ¿Podrías repetir tu mensaje? Estoy aquí para ayudarte 🤖",
-                "intent": "error",                "entities": {},
+                "intent": "error",
+                "entities": {},
                 "products": [],
                 "conversation_id": session_id
             }

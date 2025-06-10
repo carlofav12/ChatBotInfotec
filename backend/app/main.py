@@ -16,7 +16,7 @@ from app.models import (
     ProductResponse, CategoryResponse, CartResponse, OrderResponse,
     ProductCreate, CategoryCreate, CartItemCreate, OrderCreate
 )
-from app.enhanced_chatbot_v2 import EnhancedInfotecChatbotV2  # Usar la nueva versión mejorada
+from app.enhanced_chatbot_v3 import EnhancedInfotecChatbotV3  # Usar la nueva versión mejorada V3
 from app.database import get_db, create_tables
 from app import crud
 from sqlalchemy.orm import Session
@@ -46,14 +46,14 @@ app.add_middleware(
 # Instancia global del chatbot
 enhanced_chatbot_instance = None
 
-def get_enhanced_chatbot() -> EnhancedInfotecChatbotV2:
-    """Dependency injection para el chatbot mejorado V2"""
+def get_enhanced_chatbot() -> EnhancedInfotecChatbotV3:
+    """Dependency injection para el chatbot mejorado V3"""
     global enhanced_chatbot_instance
     if enhanced_chatbot_instance is None:
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="Google API Key no configurada")
-        enhanced_chatbot_instance = EnhancedInfotecChatbotV2(api_key)
+        enhanced_chatbot_instance = EnhancedInfotecChatbotV3(api_key)
     return enhanced_chatbot_instance
 
 @app.on_event("startup")
@@ -110,9 +110,9 @@ async def health_check():
 async def chat_endpoint(
     message: ChatMessage,
     db: Session = Depends(get_db),
-    chatbot: EnhancedInfotecChatbotV2 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
 ):
-    """Endpoint principal para chatear con InfoBot V2 mejorado"""
+    """Endpoint principal para chatear con InfoBot V3 mejorado"""
     try:
         logger.info(f"💬 Nueva consulta: {message.message[:50]}...")
         
@@ -129,7 +129,7 @@ async def chat_endpoint(
         if len(message.message) > 1000:
             raise HTTPException(status_code=400, detail="El mensaje es demasiado largo (máximo 1000 caracteres)")
         
-        # Generar respuesta con el chatbot V2 mejorado
+        # Generar respuesta con el chatbot V3 mejorado
         response_data = chatbot.process_message(
             message=message.message.strip(), 
             db=db,
@@ -145,16 +145,14 @@ async def chat_endpoint(
             intent=response_data.get("intent", "general"),
             entities=response_data.get("entities", {}),
             products=response_data.get("products", []),
-            cart_total=response_data.get("cart_total")
-        )
-        
-        logger.info(f"✅ Respuesta V2 generada exitosamente - Intent: {response.intent}")
+            cart_total=response_data.get("cart_total")        )
+        logger.info(f"✅ Respuesta V3 generada exitosamente - Intent: {response.intent}")
         return response
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Error en chat endpoint V2: {e}")
+        logger.error(f"❌ Error en chat endpoint V3: {e}")
         # Respuesta de fallback amigable
         return ChatResponse(
             response="Disculpa, tuve un problema técnico momentáneo. ¿Podrías repetir tu mensaje? Estoy aquí para ayudarte 🤖",
@@ -366,7 +364,7 @@ async def global_exception_handler(request, exc):
 @app.post("/api/clear-history")
 async def clear_conversation_history(
     session_id: Optional[str] = None,
-    chatbot: EnhancedInfotecChatbotV2 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
 ):
     """Limpiar historial de conversación para una sesión específica"""
     try:
@@ -387,7 +385,7 @@ async def clear_conversation_history(
 @app.get("/api/conversation-stats")
 async def get_conversation_stats(
     session_id: Optional[str] = None,
-    chatbot: EnhancedInfotecChatbotV2 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
 ):
     """Obtener estadísticas de conversación"""
     try:
