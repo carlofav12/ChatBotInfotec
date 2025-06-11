@@ -105,6 +105,7 @@ class ChatbotConfig:
         "teclado": r"teclado|keyboard",
         "mouse": r"mouse|raton",
         "impresora": r"impresora[s]?|printer[s]?",
+         "ram": r"\bram\b|memoria ram",
         "procesador": r"procesador|cpu",
         "audifono": r"audifono|Headphone",
         
