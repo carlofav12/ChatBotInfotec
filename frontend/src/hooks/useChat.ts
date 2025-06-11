@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiService, ChatResponse } from '../services/api';
+import { useCart } from '../contexts/CartContext';
 
 interface Product {
   id: number;
@@ -66,8 +67,7 @@ export const useChat = () => {
         isBot: true,
         timestamp: new Date(),
       },
-    ];
-  });
+    ];  });
   // Nuevo estado para manejar la escritura del bot
   const [botTypingState, setBotTypingState] = useState<'idle' | 'thinking' | 'typing' | 'searching'>('idle');
     // Nuevo estado para métricas de conversación
@@ -75,8 +75,10 @@ export const useChat = () => {
     totalMessages: 0,
     averageResponseTime: 0,
     lastActivity: new Date(),
-    sessionStartTime: new Date()
-  });
+    sessionStartTime: new Date()  });
+
+  // Usar useCart hook para sincronizar carrito
+  const { addItem } = useCart();
 
   // Efecto para guardar mensajes en localStorage automáticamente
   useEffect(() => {
@@ -108,8 +110,7 @@ export const useChat = () => {
           },
         ];
       });
-      
-      // Actualizar contexto con los productos mencionados
+        // Actualizar contexto con los productos mencionados
       if (response.products && response.products.length > 0) {
         setContextData(prev => ({
           ...prev,
@@ -117,6 +118,27 @@ export const useChat = () => {
           lastIntent: response.intent,
           lastEntities: response.entities
         }));
+      }
+
+      // Sincronizar carrito si el chatbot agregó un producto
+      if (response.cart_action && response.cart_action.action === 'add_to_cart' && response.cart_action.success && response.cart_action.product) {
+        const product = response.cart_action.product;
+        const quantity = response.cart_action.quantity || 1;
+        
+        // Convertir el producto a la interfaz esperada por CartContext
+        const cartProduct = {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image_url: product.image_url,
+          stock_quantity: product.stock_quantity,
+          brand: product.brand,
+          rating: product.rating || 5
+        };
+        
+        // Agregar al carrito del frontend
+        addItem(cartProduct, quantity);
+        console.log('🛒 Producto sincronizado al carrito del frontend:', product.name);
       }
     },
     onError: (error: Error) => {

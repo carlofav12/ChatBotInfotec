@@ -1,10 +1,10 @@
-# filepath: backend/app/chatbot/services/product_service.py
+# filepath: backend/app/chatbot/services/product_service_improved.py
 """
-Servicio para búsqueda y manejo de productos
+Servicio mejorado para búsqueda y manejo de productos
 Maneja las operaciones relacionadas con búsqueda, especificaciones y carrito
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.database import Product
 from app.models import Product as ProductModel
@@ -92,14 +92,18 @@ class ProductService:
             return None
     
     def add_to_cart(self, db: Session, product_id: int, quantity: int = 1, 
-                    user_id: Optional[int] = None, session_id: Optional[str] = None) -> bool:
-        """Agregar producto al carrito"""
+                    user_id: Optional[int] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Agregar producto al carrito - Versión mejorada con mejor respuesta"""
         try:
             # Verificar que el producto existe y tiene stock
             product = db.query(Product).filter(Product.id == product_id).first()
             if not product:
                 logger.warning(f"Producto {product_id} no encontrado")
-                return False
+                return {
+                    "success": False,
+                    "message": "❌ Producto no encontrado en nuestro inventario",
+                    "product": None
+                }
             
             # Convertir a modelo Pydantic para evitar errores de tipado
             try:
@@ -107,32 +111,77 @@ class ProductService:
                 # Verificar stock disponible
                 if product_model.stock_quantity < quantity:
                     logger.warning(f"Stock insuficiente. Disponible: {product_model.stock_quantity}, Solicitado: {quantity}")
-                    return False
+                    return {
+                        "success": False,
+                        "message": f"⚠️ Stock insuficiente. Solo quedan **{product_model.stock_quantity}** unidades disponibles",
+                        "product": product_model,
+                        "available_stock": product_model.stock_quantity
+                    }
             except Exception as model_error:
                 logger.error(f"Error convirtiendo producto a modelo: {model_error}")
-                return False
+                return {
+                    "success": False,
+                    "message": "❌ Error procesando el producto. Inténtalo nuevamente.",
+                    "product": None
+                }
             
             logger.info(f"Agregando producto {product_id} al carrito (cantidad: {quantity})")
-              # Usar CRUD para agregar al carrito
+            
+            # Usar CRUD para agregar al carrito
             from app.crud import add_to_cart as crud_add_to_cart
             
             # Si no hay user_id, usar un user_id temporal (1) para pruebas
             effective_user_id = user_id if user_id else 1
             
-            cart_item = crud_add_to_cart(
-                db=db,
-                user_id=effective_user_id,
-                product_id=product_id,
-                quantity=quantity
-            )
-            
-            if cart_item:
-                logger.info(f"Producto {product_id} agregado exitosamente al carrito")
-                return True
-            else:
-                logger.warning(f"No se pudo agregar producto {product_id} al carrito")
-                return False
+            try:
+                cart_item = crud_add_to_cart(
+                    db=db,
+                    user_id=effective_user_id,
+                    product_id=product_id,
+                    quantity=quantity
+                )
+                
+                # Hacer commit explícito para asegurar que se guarde
+                db.commit()
+                
+                if cart_item:
+                    logger.info(f"Producto {product_id} agregado exitosamente al carrito")
+                    
+                    # Calcular total del carrito actualizado
+                    from app.crud import get_cart_total
+                    cart_total = get_cart_total(db, effective_user_id)
+                    
+                    return {
+                        "success": True,
+                        "message": "✅ Producto agregado exitosamente al carrito",
+                        "product": product_model,
+                        "quantity": quantity,
+                        "cart_item_id": cart_item.id,
+                        "cart_total": cart_total,
+                        "user_id": effective_user_id,
+                        "item_subtotal": product_model.price * quantity
+                    }
+                else:
+                    logger.warning(f"No se pudo agregar producto {product_id} al carrito")
+                    return {
+                        "success": False,
+                        "message": "❌ No se pudo agregar el producto al carrito. Inténtalo nuevamente.",
+                        "product": product_model
+                    }
+                    
+            except Exception as db_error:
+                logger.error(f"Error de base de datos al agregar al carrito: {db_error}")
+                db.rollback()
+                return {
+                    "success": False,
+                    "message": "❌ Error de conexión con la base de datos. Inténtalo nuevamente.",
+                    "product": product_model
+                }
                 
         except Exception as e:
-            logger.error(f"Error agregando al carrito: {e}")
-            return False
+            logger.error(f"Error general agregando al carrito: {e}")
+            return {
+                "success": False,
+                "message": "❌ Error interno del sistema. Contacta al soporte técnico de GRUPO INFOTEC.",
+                "product": None
+            }

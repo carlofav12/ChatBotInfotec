@@ -18,6 +18,7 @@ class ChatResponse(BaseModel):
     entities: Optional[Dict[str, Any]] = {}
     products: Optional[List[Dict[str, Any]]] = []
     cart_total: Optional[float] = None
+    cart_action: Optional[Dict[str, Any]] = None  # Para acciones del carrito
 
 class ConversationHistory(BaseModel):
     role: str  # "user" or "assistant"
