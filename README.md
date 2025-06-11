@@ -1,13 +1,42 @@
 # InfoBot GRUPO INFOTEC 🤖💻
 
-Chatbot inteligente desarrollado en base de la empresa GRUPO INFOTEC - Empresa de Tecnología y Servicios.
+Chatbot inteligente modularizado desarrollado para GRUPO INFOTEC - Empresa líder en Tecnología y Servicios Informáticos en Perú.
+
+## ✨ Características Principales
+
+- 🧠 **IA Conversacional Avanzada** - Powered by Google Gemini AI
+- 🛍️ **E-commerce Integrado** - Búsqueda y venta de productos
+- 🏗️ **Arquitectura Modular** - Código organizado y escalable
+- 💬 **Contexto Conversacional** - Memoria de conversaciones
+- 📱 **Interfaz Moderna** - UI/UX optimizada
+- 🚀 **Alto Rendimiento** - APIs rápidas y eficientes
+
+## 🏗️ Arquitectura Modularizada
+
+El chatbot ha sido completamente refactorizado en una arquitectura modular:
+
+```
+backend/app/chatbot/
+├── core/                    # Núcleo del sistema
+│   ├── config.py           # Configuraciones centrales
+│   └── enhanced_chatbot_v4.py  # Orquestador principal
+├── services/               # Servicios de negocio
+│   ├── product_service.py  # Gestión de productos
+│   └── ai_response_generator.py  # IA conversacional
+└── utils/                  # Utilidades especializadas
+    ├── entity_extractor.py # Análisis de mensajes
+    ├── response_formatter.py # Formateo de respuestas
+    └── conversation_manager.py # Gestión de contexto
+```
 
 ## 🚀 Tecnologías Utilizadas
 
 ### Backend
 - **FastAPI** - Framework web moderno para APIs
 - **Google Gemini AI** - Modelo de inteligencia artificial generativa
-- **Python 3.8+** - Lenguaje de programación
+- **Python 3.11+** - Lenguaje de programación
+- **PostgreSQL** - Base de datos relacional
+- **SQLAlchemy** - ORM para Python
 - **Uvicorn** - Servidor ASGI de alto rendimiento
 
 ### Frontend

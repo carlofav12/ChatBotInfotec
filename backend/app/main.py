@@ -16,7 +16,7 @@ from app.models import (
     ProductResponse, CategoryResponse, CartResponse, OrderResponse,
     ProductCreate, CategoryCreate, CartItemCreate, OrderCreate
 )
-from app.enhanced_chatbot_v3 import EnhancedInfotecChatbotV3  # Usar la nueva versión mejorada V3
+from app.chatbot import EnhancedInfotecChatbotV4  # Usar la nueva versión modularizada V4
 from app.database import get_db, create_tables
 from app import crud
 from sqlalchemy.orm import Session
@@ -46,14 +46,14 @@ app.add_middleware(
 # Instancia global del chatbot
 enhanced_chatbot_instance = None
 
-def get_enhanced_chatbot() -> EnhancedInfotecChatbotV3:
+def get_enhanced_chatbot() -> EnhancedInfotecChatbotV4:
     """Dependency injection para el chatbot mejorado V3"""
     global enhanced_chatbot_instance
     if enhanced_chatbot_instance is None:
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise HTTPException(status_code=500, detail="Google API Key no configurada")
-        enhanced_chatbot_instance = EnhancedInfotecChatbotV3(api_key)
+        enhanced_chatbot_instance = EnhancedInfotecChatbotV4(api_key)
     return enhanced_chatbot_instance
 
 @app.on_event("startup")
@@ -108,9 +108,9 @@ async def health_check():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(
-    message: ChatMessage,
+        message: ChatMessage,
     db: Session = Depends(get_db),
-    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV4 = Depends(get_enhanced_chatbot)
 ):
     """Endpoint principal para chatear con InfoBot V3 mejorado"""
     try:
@@ -364,16 +364,18 @@ async def global_exception_handler(request, exc):
 @app.post("/api/clear-history")
 async def clear_conversation_history(
     session_id: Optional[str] = None,
-    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV4 = Depends(get_enhanced_chatbot)
 ):
     """Limpiar historial de conversación para una sesión específica"""
     try:
-        if session_id and session_id in chatbot.session_conversations:
-            del chatbot.session_conversations[session_id]
+        if session_id:
+            chatbot.clear_session(session_id)
             logger.info(f"🗑️ Historial limpiado para sesión: {session_id}")
         else:
             # Limpiar todas las sesiones
-            chatbot.session_conversations.clear()
+            active_sessions = chatbot.conversation_manager.get_active_sessions()
+            for session in active_sessions:
+                chatbot.clear_session(session)
             logger.info("🗑️ Todos los historiales limpiados")
         
         return {"status": "success", "message": "Historial limpiado correctamente"}
@@ -385,27 +387,27 @@ async def clear_conversation_history(
 @app.get("/api/conversation-stats")
 async def get_conversation_stats(
     session_id: Optional[str] = None,
-    chatbot: EnhancedInfotecChatbotV3 = Depends(get_enhanced_chatbot)
+    chatbot: EnhancedInfotecChatbotV4 = Depends(get_enhanced_chatbot)
 ):
     """Obtener estadísticas de conversación"""
     try:
         if session_id:
-            history = chatbot.get_conversation_history(session_id)
+            stats = chatbot.conversation_manager.get_session_stats(session_id)
             return {
                 "session_id": session_id,
-                "total_messages": len(history),
-                "user_messages": len([msg for msg in history if not msg.get("bot_response")]),
-                "bot_messages": len([msg for msg in history if msg.get("bot_response")]),
-                "products_shown": any(msg.get("showed_products", False) for msg in history),
-                "last_activity": history[-1].get("timestamp") if history else None
+                **stats
             }
         else:
-            total_sessions = len(chatbot.session_conversations)
-            total_messages = sum(len(history) for history in chatbot.session_conversations.values())
+            active_sessions = chatbot.conversation_manager.get_active_sessions()
+            total_sessions = len(active_sessions)
+            total_messages = sum(
+                len(chatbot.conversation_manager.get_conversation_history(session)) 
+                for session in active_sessions
+            )
             return {
                 "total_sessions": total_sessions,
                 "total_messages": total_messages,
-                "active_sessions": list(chatbot.session_conversations.keys())
+                "active_sessions": active_sessions
             }
             
     except Exception as e:
