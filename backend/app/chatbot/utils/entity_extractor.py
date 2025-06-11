@@ -23,34 +23,36 @@ class EntityExtractor:
         }
         
         message_lower = message.lower()
-        
-        # Extraer productos específicos
-        self._extract_product_category(message_lower, entities)
-        
-        # Extraer marcas
-        self._extract_brand(message_lower, entities)
-        
-        # Extraer presupuesto
-        self._extract_budget(message_lower, entities)
-        
-        # Extraer cantidad
-        self._extract_quantity(message_lower, entities)
-        
-        # Detectar uso/caso de uso
-        self._extract_use_case(message_lower, entities)
-        
-        # Detectar intención de agregar al carrito
-        self._extract_cart_action(message_lower, entities, conversation_history)
-        
-        # Detectar solicitud de especificaciones
-        self._extract_spec_action(message_lower, entities)
-        
-        # Detectar solicitud de recomendación
-        self._extract_recommend_action(message_lower, entities)
-        
-        # Extraer nombre específico de producto mencionado
-        self._extract_specific_product_name(message_lower, entities)
-        
+        self._extract_comparison_entities(message_lower, entities)
+        if not entities.get("accion") == "comparar_productos":
+            # Extraer productos específicos
+            self._extract_product_category(message_lower, entities)
+            
+            # Extraer marcas
+            self._extract_brand(message_lower, entities)
+            
+            # Extraer presupuesto
+            self._extract_budget(message_lower, entities)
+            
+            # Extraer cantidad
+            self._extract_quantity(message_lower, entities)
+            
+            # Detectar uso/caso de uso
+            self._extract_use_case(message_lower, entities)
+            
+            # Detectar intención de agregar al carrito
+            self._extract_cart_action(message_lower, entities, conversation_history)
+            
+            # Detectar solicitud de especificaciones
+            self._extract_spec_action(message_lower, entities)
+            
+            # Detectar solicitud de recomendación
+            self._extract_recommend_action(message_lower, entities)
+            
+            # Extraer nombre específico de producto mencionado
+            self._extract_specific_product_name(message_lower, entities)
+        else:
+            pass 
         return entities
     
     def _extract_product_category(self, message_lower: str, entities: Dict[str, Any]) -> None:
@@ -91,8 +93,7 @@ class EntityExtractor:
         """Detectar intención de agregar al carrito"""
         if any(pattern in message_lower for pattern in self.config.CART_PATTERNS):
             entities["accion"] = "agregar_carrito"
-            
-            # Si usa referencias contextuales sin especificar producto
+              # Si usa referencias contextuales sin especificar producto
             if any(ref in message_lower for ref in self.config.CONTEXTUAL_REFS) and conversation_history:
                 last_product = self._get_last_discussed_product(conversation_history)
                 if last_product:
@@ -157,9 +158,15 @@ class EntityExtractor:
         # Si menciona presupuesto
         if entities.get("presupuesto"):
             return True
-        
-        # Si menciona caso de uso específico
+          # Si menciona caso de uso específico
         if entities.get("uso"):
+            return True
+        
+        # Comparar productos
+        if entities.get("accion") == "comparar_productos" and (entities.get("productos_a_comparar") or entities.get("marcas_a_comparar")):
+            return True
+            
+        if entities.get("producto_especifico"):
             return True
             
         return False
@@ -194,3 +201,63 @@ class EntityExtractor:
             search_terms.append("laptop")
         
         return " ".join(search_terms)
+    
+    def _extract_comparison_entities(self, message_lower: str, entities: Dict[str, Any]) -> None:
+        """Detectar intención de comparación y extraer productos/atributos/marcas."""
+        is_comparison_intent = False
+        product_names_to_compare = []
+        attributes_to_compare = []
+        marcas_to_compare = []
+
+        for pattern in self.config.COMPARISON_PATTERNS:
+            match = re.search(pattern, message_lower)
+            if match:
+                is_comparison_intent = True
+                # Extraer nombres de productos/marcas de los grupos de captura
+                if len(match.groups()) >= 2:
+                    # Limpiar y añadir los elementos a comparar
+                    item1_full = match.group(1).strip()
+                    item2_full = match.group(2).strip()
+                    
+                    # Intentar identificar si son marcas o nombres de producto más específicos
+                    # Esto es una heurística y podría mejorarse
+                    item1_is_brand = any(brand.lower() == item1_full.lower() for brand in self.config.BRANDS)
+                    item2_is_brand = any(brand.lower() == item2_full.lower() for brand in self.config.BRANDS)
+
+                    if item1_is_brand and item2_is_brand:
+                        marcas_to_compare.extend([item1_full, item2_full])
+                    elif item1_is_brand and not item2_is_brand: # Ej: "compara Asus con Dell XPS"
+                        marcas_to_compare.append(item1_full)
+                        product_names_to_compare.append(item2_full)
+                    elif not item1_is_brand and item2_is_brand: # Ej: "compara Dell XPS con Asus"
+                        product_names_to_compare.append(item1_full)
+                        marcas_to_compare.append(item2_full)
+                    else: # Asumir que son nombres de producto
+                        product_names_to_compare.extend([item1_full, item2_full])
+                
+                # Extraer atributos de comparación del resto del mensaje (si no están en los grupos)
+                # o de todo el mensaje si el patrón es simple como "vs"
+                text_for_attributes = message_lower
+                if len(match.groups()) >=2: # Si los productos estaban en grupos, buscar atributos en el resto
+                    text_for_attributes = message_lower.replace(match.group(0), "").strip()
+                
+                for attr, attr_patterns in self.config.COMPARISON_ATTRIBUTE_PATTERNS.items():
+                    for p_attr in attr_patterns:
+                        if re.search(p_attr, text_for_attributes) or re.search(p_attr, message_lower): # Buscar en el resto o en todo
+                            attributes_to_compare.append(attr)
+                break 
+
+        if is_comparison_intent:
+            entities["accion"] = "comparar_productos"
+            entities["productos_a_comparar"] = list(set(product_names_to_compare))
+            entities["marcas_a_comparar"] = list(set(marcas_to_compare))
+            entities["atributos_a_comparar"] = list(set(attributes_to_compare))
+
+            if not entities["atributos_a_comparar"] and (entities["productos_a_comparar"] or entities["marcas_a_comparar"]):
+                entities["atributos_a_comparar"] = ["caracteristicas"] # Default
+
+            # Si solo se mencionan marcas y no productos específicos, priorizar marcas.
+            if entities["marcas_a_comparar"] and not entities["productos_a_comparar"]:
+                 # Podríamos querer buscar productos de estas marcas.
+                 # Por ahora, el servicio de producto decidirá cómo manejar esto.
+                 pass

@@ -377,3 +377,63 @@ def update_order_status(db: Session, order_id: int, status: str) -> bool:
     except Exception as e:
         db.rollback()
         return False
+    
+def get_products_by_names_or_brands_for_comparison(
+    db: Session, 
+    product_names: List[str] = None, 
+    brand_names: List[str] = None, 
+    limit_per_item: int = 2
+) -> List[Product]:
+    """
+    Recupera productos para comparación.
+    Busca por nombres de producto exactos/parciales o por nombres de marca.
+    Intenta obtener 'limit_per_item' para cada nombre/marca.
+    """
+    if not product_names and not brand_names:
+        return []
+
+    all_found_products_dict: Dict[int, Product] = {} # Usar dict para evitar duplicados por ID
+
+    if product_names:
+        for name_query in product_names:
+            # Limpiar y dividir el nombre en palabras clave para una búsqueda más flexible
+            keywords = [f"%{keyword.strip()}%" for keyword in name_query.split() if keyword.strip()]
+            if not keywords:
+                continue
+
+            query = db.query(Product)
+            # Aplicar un filtro AND para cada palabra clave dentro de un name_query
+            # Ejemplo: "asus rog strix" -> name LIKE %asus% AND name LIKE %rog% AND name LIKE %strix%
+            # También buscar por coincidencia parcial del nombre completo
+            name_filters = [Product.name.ilike(kw) for kw in keywords]
+            name_filters.append(Product.name.ilike(f"%{name_query.strip()}%")) # Coincidencia del nombre completo
+
+            query = query.filter(or_(*name_filters))
+            
+            # Añadir filtro para no incluir productos ya encontrados
+            if all_found_products_dict:
+                query = query.filter(Product.id.notin_(list(all_found_products_dict.keys())))
+
+            products_for_name = query.order_by(Product.rating.desc().nullslast(), Product.price.asc()).limit(limit_per_item).all()
+            for p in products_for_name:
+                if p.id not in all_found_products_dict:
+                    all_found_products_dict[p.id] = p
+    
+    if brand_names:
+        for brand_name in brand_names:
+            # Asumimos que el nombre de la marca está en Product.name o en un campo/relación de marca.
+            # Por ahora, buscamos en Product.name.
+            # Si Product tiene un campo brand_id o brand.name (a través de una relación):
+            # from app.models import Brand # Suponiendo que existe
+            # query = db.query(Product).join(Brand).filter(Brand.name.ilike(f"%{brand_name}%"))
+            query = db.query(Product).filter(Product.name.ilike(f"%{brand_name.strip()}%"))
+            
+            if all_found_products_dict:
+                query = query.filter(Product.id.notin_(list(all_found_products_dict.keys())))
+            
+            products_for_brand = query.order_by(Product.rating.desc().nullslast(), Product.price.asc()).limit(limit_per_item).all()
+            for p in products_for_brand:
+                 if p.id not in all_found_products_dict:
+                    all_found_products_dict[p.id] = p
+                    
+    return list(all_found_products_dict.values())

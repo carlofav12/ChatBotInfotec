@@ -4,7 +4,7 @@ Formateador de respuestas del chatbot
 Maneja la generación de respuestas formateadas para productos y especificaciones
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.models import Product as ProductModel
 from ..core.config import ChatbotConfig
 
@@ -208,4 +208,93 @@ class ResponseFormatter:
         response += "• Seguir comprando\n\n"
         response += "¡Estoy aquí para ayudarte! 😊"
         
+        return response
+
+    def format_product_comparison(self, products_data: List[Dict[str, Any]], attributes_requested: List[str], original_query: str = "") -> str:
+        """
+        Formatea los datos de comparación de productos en una respuesta legible.
+        products_data: Lista de diccionarios, cada uno representando un producto con sus atributos.
+        attributes_requested: Lista de atributos que el usuario pidió comparar.
+        original_query: La consulta original del usuario, para contexto.
+        """
+        if not products_data:
+            return f"No pude encontrar información para los productos que mencionaste ({original_query}). ¿Podrías verificar los nombres o intentar con otros? 🤔"
+
+        num_products = len(products_data)
+        
+        if original_query:
+             response = f"Aquí tienes una comparación basada en tu consulta: '{original_query}':\n\n"
+        else:
+            response = "Aquí tienes la comparación de los productos:\n\n"
+
+
+        if num_products == 1:
+            response = f"Solo encontré un producto que coincide con tu solicitud de comparación: **{products_data[0].get('name', 'Producto Desconocido')}**.\n"
+            response += "Aquí están sus detalles:\n"
+            product = products_data[0]
+            for key, value in product.items():
+                if key not in ["id"]: 
+                    response += f"  - **{key.replace('_', ' ').capitalize()}:** {value}\n"
+            return response
+
+        # Determinar los atributos a mostrar en la tabla
+        # Usar los atributos solicitados, y si es "caracteristicas", usar todos los disponibles.
+        # Siempre mostrar 'name' y 'price' como base.
+        
+        # Recopilar todos los atributos únicos presentes en los productos.
+        all_keys_from_data = set()
+        for p_data in products_data:
+            all_keys_from_data.update(p_data.keys())
+        
+        # Atributos base que siempre intentamos mostrar primero
+        base_attributes = ["price", "marca", "rating"] # rating y category pueden no estar siempre
+        
+        display_attributes_set = set()
+
+        if "caracteristicas" in attributes_requested or not attributes_requested:
+            # Mostrar un conjunto amplio de atributos
+            display_attributes_set.update(base_attributes)
+            # Añadir otros atributos comunes o todos los disponibles, excluyendo 'id' y 'name'
+            for key in all_keys_from_data:
+                if key not in ["id", "name"]:
+                    display_attributes_set.add(key)
+        else:
+            # Mostrar solo los atributos solicitados, más los base
+            display_attributes_set.update(base_attributes)
+            for attr_req in attributes_requested:
+                # El servicio ya debería haber mapeado/obtenido el atributo
+                # Así que buscamos la clave tal como está en products_data
+                if attr_req in all_keys_from_data:
+                     display_attributes_set.add(attr_req)
+                # Si el atributo solicitado no está en all_keys_from_data,
+                # es porque el servicio no lo pudo encontrar/mapear. Se omitirá.
+
+        # Ordenar los atributos para la tabla: base primero, luego el resto alfabéticamente
+        sorted_display_attributes = [attr for attr in base_attributes if attr in display_attributes_set]
+        sorted_display_attributes.extend(sorted([attr for attr in display_attributes_set if attr not in base_attributes]))
+
+
+        # Crear la tabla Markdown
+        headers = ["Características 📝"] + [p.get("name", f"Producto {i+1}")[:30] for i, p in enumerate(products_data)] # Limitar longitud de nombre
+        response += "| " + " | ".join(headers) + " |\n"
+        response += "|-" + "-|-".join(["-" * min(len(h), 30) for h in headers]) + "-|\n" # Limitar longitud de separador
+
+        for attr_key in sorted_display_attributes:
+            if attr_key in ["id", "name"]: # 'name' ya está en encabezados, 'id' no se muestra
+                continue
+            
+            row_values = [attr_key.replace('_', ' ').capitalize()]
+            for p_data in products_data:
+                value = p_data.get(attr_key, "N/A")
+                if isinstance(value, float) and attr_key == "price":
+                    value = f"S/ {value:.2f}"
+                elif isinstance(value, list): # Si un atributo es una lista
+                    value = ", ".join(map(str,value))
+                elif isinstance(value, dict): # Si es un dict
+                    value = "; ".join([f"{k_}: {v_}" for k_,v_ in value.items()])
+
+                row_values.append(str(value)[:30]) # Limitar longitud del valor en celda
+            response += "| " + " | ".join(row_values) + " |\n"
+        
+        response += f"\nEspero que esta comparación de los {num_products} productos te sea útil. ¿Hay algo más en lo que pueda ayudarte? 😊"
         return response

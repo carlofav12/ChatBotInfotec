@@ -91,6 +91,111 @@ class ProductService:
             logger.error(f"Error buscando producto por nombre '{product_name}': {e}")
             return None
     
+    def get_comparison_data(
+        self, 
+        db: Session, 
+        product_names: List[str], 
+        brand_names: List[str], 
+        attributes: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Obtiene datos de productos para comparación.
+        product_names: Lista de nombres de productos.
+        brand_names: Lista de nombres de marcas.
+        attributes: Lista de atributos a extraer (ej: ["precio", "bateria"]).
+                    Si "caracteristicas" está en attributes, se devuelven todos los datos relevantes.        """
+        
+        # Import the missing function
+        from app.crud import get_products_by_names_or_brands_for_comparison
+        
+        db_products = get_products_by_names_or_brands_for_comparison(
+            db, 
+            product_names=product_names, 
+            brand_names=brand_names, 
+            limit_per_item=2 # Obtener hasta 2 productos por nombre/marca para dar opciones
+        )
+
+        if not db_products:
+            return []
+
+        comparison_results = []
+        for product_db in db_products:
+            try:
+                product_model = ProductModel.from_orm(product_db)
+            except Exception as e:
+                logger.warning(f"Error convirtiendo producto DB a Pydantic model: {product_db.name}, error: {e}")
+                continue
+
+            product_data = {}
+            
+            # Siempre incluir nombre, id y precio base para identificación
+            product_data["id"] = product_model.id
+            product_data["name"] = product_model.name
+            product_data["price"] = product_model.price # Precio base siempre
+
+            # Mapeo de atributos solicitados a campos del modelo o lógica especial
+            attribute_map = {
+                "precio": "price",
+                "bateria": "battery_life", # Asumiendo que existe un campo battery_life
+                "pantalla": "screen_specifications", # Asumiendo campo
+                "rendimiento": "performance_score", # Asumiendo campo
+                "camara": "camera_specifications", # Asumiendo campo
+                "almacenamiento": "storage_capacity", # Asumiendo campo
+                "ram": "ram_amount", # Asumiendo campo
+                "procesador": "processor_model", # Asumiendo campo
+                "tarjeta grafica": "graphics_card_model", # Asumiendo campo                "peso": "weight_kg", # Asumiendo campo
+                "dimensiones": "dimensions_cm", # Asumiendo campo
+                "marca": "brand_name", # Asumiendo que se puede extraer o ya existe
+                # "caracteristicas" se maneja especialmente
+            }
+            
+            if "caracteristicas" in attributes or not attributes:
+                # Devolver un conjunto razonable de datos.
+                product_data["stock_quantity"] = product_model.stock_quantity
+                product_data["description"] = product_model.description if hasattr(product_model, 'description') else "N/A"
+                product_data["category_id"] = getattr(product_model, 'category_id', "N/A")
+                product_data["rating"] = getattr(product_model, 'rating', "N/A")
+                # Añadir más campos relevantes si existen en ProductModel
+                if hasattr(product_model, 'specifications') and product_model.specifications:
+                     if isinstance(product_model.specifications, dict):
+                        product_data.update(product_model.specifications)
+                     else:
+                        product_data['other_specifications'] = str(product_model.specifications)
+
+                # Incluir atributos mapeados si no están ya
+                for req_attr, model_attr_name in attribute_map.items():
+                    if req_attr not in product_data and hasattr(product_model, model_attr_name):
+                        product_data[req_attr] = getattr(product_model, model_attr_name, "N/A")
+            else:
+                for req_attr in attributes:
+                    if req_attr == "precio": # Ya incluido
+                        continue
+                    model_attr_key = attribute_map.get(req_attr)
+                    if model_attr_key and hasattr(product_model, model_attr_key):
+                        product_data[req_attr] = getattr(product_model, model_attr_key, "N/A")
+                    elif hasattr(product_model, req_attr): # Intento directo
+                         product_data[req_attr] = getattr(product_model, req_attr, "N/A")
+                    else:
+                        # Si el atributo no se encuentra directamente o mapeado,
+                        # podríamos intentar buscarlo en un campo genérico de especificaciones si existe
+                        if hasattr(product_model, 'specifications') and isinstance(product_model.specifications, dict):
+                            product_data[req_attr] = product_model.specifications.get(req_attr, "N/A")
+                        else:
+                            product_data[req_attr] = "N/A (no especificado)"
+            
+            # Intentar obtener la marca si no está ya
+            if "marca" not in product_data or product_data["marca"] == "N/A":
+                extracted_brand = "Desconocida"
+                for brand_config in self.config.BRANDS: # Usar self.config de EntityExtractor
+                    if brand_config.lower() in product_model.name.lower():
+                        extracted_brand = brand_config.capitalize()
+                        break
+                product_data["marca"] = extracted_brand
+
+            comparison_results.append(product_data)
+            
+        return comparison_results
+
     def add_to_cart(self, db: Session, product_id: int, quantity: int = 1, 
                     user_id: Optional[int] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Agregar producto al carrito - Versión mejorada con mejor respuesta"""

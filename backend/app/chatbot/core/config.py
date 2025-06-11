@@ -12,6 +12,9 @@ class ChatbotConfig:
     COMPANY_INFO = {
         "nombre": "GRUPO INFOTEC",
         "descripcion": "Empresa líder en tecnología y servicios informáticos en Perú",
+        "despedida": "¡Gracias por chatear con InfoBot! Que tengas un buen día. 😊",
+        "agradecimiento": "¡De nada! Estoy aquí para ayudarte. 😊",
+        "producto_no_encontrado": "Lo siento, no pude encontrar ese producto específico. ¿Podrías verificar el nombre o darme más detalles? 🤔",
         "especialidades": [
             "Computadoras de escritorio y laptops",
             "Equipos gaming de alta gama", 
@@ -98,20 +101,23 @@ class ChatbotConfig:
     
     # Patrones para extracción de entidades
     PRODUCT_PATTERNS = {
-        "laptop": r"laptop|portatil|notebook",
-        "pc": r"\bpc\b|computadora|desktop",
-        "gaming": r"gaming|gamer|juegos",
+        "laptop": r"laptop|port[aá]til|notebook",
+        "pc": r"pc|computadora de escritorio|desktop|ordenador",
         "monitor": r"monitor|pantalla",
         "teclado": r"teclado|keyboard",
-        "mouse": r"mouse|raton",
-        "impresora": r"impresora[s]?|printer[s]?",
-         "ram": r"\bram\b|memoria ram",
-        "procesador": r"procesador|cpu",
-        "audifono": r"audifono|Headphone",
-        
+        "mouse": r"mouse|rat[oó]n",
+        "impresora": r"impresora|printer",
+        "tablet": r"tablet",
+        "smartphone": r"smartphone|celular|m[oó]vil",
+        "audifonos": r"aud[ií]fonos|auriculares|headset",
+        "componente_pc": r"tarjeta de video|gpu|procesador|cpu|memoria ram|ram|disco duro|ssd|placa madre|motherboard"
     }
     
-    BRANDS = ["hp", "dell", "lenovo", "asus", "acer", "msi", "apple", "samsung"]
+    BRANDS = [
+        "asus", "lenovo", "hp", "dell", "acer", "apple", "samsung", 
+        "lg", "microsoft", "xiaomi", "huawei", "msi", "gigabyte", 
+        "corsair", "logitech", "razer", "kingston", "intel", "amd"
+    ]
     
     USE_CASES = {
         "gaming": ["gaming", "gamer", "juegos", "videojuegos", "fps", "minecraft", "fortnite"],
@@ -151,17 +157,18 @@ class ChatbotConfig:
         r"dell\s+inspiron\s+3520[\s\w]*",
         r"dell\s+inspiron[\s\w]*"
     ]
-    
-    # Patrones de acciones
+      # Patrones de acciones
     CART_PATTERNS = [
-        "agregar", "añadir", "carrito", "comprar", "llevar", "quiero", "necesito", 
-        "agrega", "puedes agregar", "agregarlo", "añadirlo", "comprarlo", "lo quiero", 
-        "lo agrego", "puedes agregarlo", "me lo das", "lo llevo"
+        r"agrega(?:r)? al carrito", r"a[ñn]ade(?:r)? al carrito", r"quiero comprar",
+        r"comprar est[oa]", r"pon(?:er)? en el carrito", r"lo llevo",
+        r"agregar", r"añadir", "carrito", r"comprar", r"llevar", r"quiero", r"necesito", 
+        r"agrega", r"puedes agregar", r"agregarlo", r"añadirlo", r"comprarlo", r"lo quiero", 
+        r"lo agrego", r"puedes agregarlo", r"me lo das", r"lo llevo"
     ]
     
     SPEC_PATTERNS = [
         "especificaciones", "specs", "características", "detalles", 
-        "información detallada", "especificacion", "que especificacion", 
+        "información detallada", "especificacion", "que especificacion",
         "qué especificación", "info", "más info"
     ]
     
@@ -170,8 +177,52 @@ class ChatbotConfig:
         "qué recomiendas", "cual me recomiendas", "que me recomiendas", 
         "cual es mejor", "cuál es mejor", "cual eliges", "sugieres", "recomiendan"
     ]
-    
-    # Contextos referenciales
+      # Contextos referenciales
     CONTEXTUAL_REFS = [
-        "agregarlo", "añadirlo", "comprarlo", "lo quiero", "este", "esa", "eso", "la anterior"
+        r"es[ea]", r"es[oa]s", r"el anterior", r"la primera", r"el [uú]ltimo", r"ese modelo"
     ]
+    
+    SPECIFIC_PRODUCT_PATTERNS = [
+        r"(?:laptop|pc|monitor|tablet)\s+(?:[a-zA-Z0-9]+\s*){1,5}", 
+        r"(?:[a-zA-Z]+\s+){0,2}(?:xps|macbook|thinkpad|rog|omen|spectre|zenbook|ideapad|legion|alienware|envy|pavilion|aspire|predator|surface)\s*\d*\s*[a-zA-Z0-9]*" # Ej: Dell XPS 13, ROG Strix G15
+    ]
+    
+    COMPARISON_PATTERNS = [
+        r"cu[aá]l es mejor\s*(.+)\s*o\s*(.+)",          # "cual es mejor lenovo o hp"
+        r"qu[eé] es mejor\s*(.+)\s*o\s*(.+)",           # "que es mejor asus o dell"
+        r"mejor\s*(.+)\s*o\s*(.+)",                     # "mejor hp o lenovo"
+        r"compara(?:r)?\s*(.+)\s*(?:con|vs|versus)\s*(.+)",  # "compara lenovo con hp"
+        r"diferencias?\s+entre\s*(.+)\s*y\s*(.+)",      # "diferencia entre" o "diferencias entre"
+        r"cu[aá]l es mejor entre\s*(.+)\s*y\s*(.+)",    # "cual es mejor entre asus y acer"
+        r"(.+)\s*vs\s*(.+)",                            # "hp vs dell"
+        r"recomienda(?:s)?\s*(.+)\s*o\s*(.+)",          # "recomiendas hp o dell"
+        r"elijo\s*(.+)\s*o\s*(.+)",                     # "elijo asus o hp"
+        r"prefiere(?:s)?\s*(.+)\s*o\s*(.+)"             # "prefieres lenovo o acer"
+    ]
+    
+    # Patrones para preguntas de recomendación general
+    RECOMMENDATION_QUERY_PATTERNS = [
+        r"qu[eé]\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",      # "que laptop es mejor"
+        r"cu[aá]l\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",     # "cual laptop es mejor"  
+        r"qu[eé]\s+me\s+recomien(?:da|das)",                           # "que me recomiendas"
+        r"cu[aá]l\s+me\s+recomien(?:da|das)",                          # "cual me recomiendas"
+        r"cu[aá]l\s+recomien(?:da|das)",                               # "cual recomiendas"
+        r"mejor\s+(?:laptop|pc|computadora|equipo|marca)",             # "mejor laptop", "mejor marca"
+        r"(?:laptop|pc|computadora|equipo)\s+recomenda(?:da|do)",      # "laptop recomendada"
+    ]
+    
+    COMPARISON_ATTRIBUTE_PATTERNS = {
+        "precio": [r"precio", r"costo", r"cu[aá]nto cuesta"],
+        "bateria": [r"bater[ií]a", r"duraci[oó]n de bater[ií]a", r"autonom[ií]a"],
+        "pantalla": [r"pantalla", r"display", r"resoluci[oó]n"],
+        "rendimiento": [r"rendimiento", r"performance", r"potencia", r"velocidad"],
+        "camara": [r"c[aá]mara", r"fotos", r"v[ií]deo"],
+        "almacenamiento": [r"almacenamiento", r"capacidad", r"disco duro", r"ssd", r"gb de disco"],
+        "ram": [r"ram", r"memoria ram", r"gb de ram"],
+        "procesador": [r"procesador", r"cpu", r"chip"],
+        "tarjeta grafica": [r"tarjeta gr[aá]fica", r"gpu", r"video"],
+        "peso": [r"peso", r"cu[aá]nto pesa", r"ligero"],
+        "dimensiones": [r"dimensiones", r"tama[ñn]o", r"medidas"],
+        "marca": [r"marca", r"fabricante"],
+        "caracteristicas": [r"caracter[ií]sticas", r"especificaciones", r"specs", r"detalles generales", r"todo"]
+    }
