@@ -174,3 +174,38 @@ class ResponseFormatter:
             spec_response += f"🔄 **Convertible:** Laptop 2 en 1\n"
         
         return spec_response
+    
+    def format_cart_response(self, cart_result: dict) -> str:
+        """Formatear respuesta de agregar al carrito"""
+        if not cart_result:
+            return "❌ Hubo un error al procesar tu solicitud. Inténtalo nuevamente."
+        
+        if not cart_result.get("success", False):
+            # Respuesta de error
+            return cart_result.get("message", "❌ No se pudo agregar el producto al carrito.")
+        
+        # Respuesta exitosa
+        product = cart_result.get("product")
+        quantity = cart_result.get("quantity", 1)
+        item_subtotal = cart_result.get("item_subtotal", 0)
+        cart_total = cart_result.get("cart_total", 0)
+        
+        if not product:
+            return "✅ Producto agregado al carrito exitosamente."
+        
+        response = f"🎉 **¡Excelente elección!**\n\n"
+        response += f"✅ **{product.name}** agregado al carrito\n"
+        response += f"📦 **Cantidad:** {quantity} unidad{'es' if quantity > 1 else ''}\n"
+        response += f"💰 **Precio unitario:** S/ {product.price:.2f}\n"
+        response += f"💵 **Subtotal:** S/ {item_subtotal:.2f}\n"
+        
+        if cart_total > 0:
+            response += f"🛒 **Total del carrito:** S/ {cart_total:.2f}\n\n"
+        
+        response += "🔔 **¿Qué deseas hacer ahora?**\n"
+        response += "• Ver más productos similares\n"
+        response += "• Proceder al checkout\n"
+        response += "• Seguir comprando\n\n"
+        response += "¡Estoy aquí para ayudarte! 😊"
+        
+        return response

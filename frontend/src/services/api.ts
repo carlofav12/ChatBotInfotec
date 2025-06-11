@@ -32,6 +32,12 @@ export interface ChatResponse {
   entities?: Record<string, any>;
   products?: Product[];
   cart_total?: number;
+  cart_action?: {
+    action: string;
+    product?: Product;
+    quantity?: number;
+    success?: boolean;
+  };
 }
 
 export interface ConversationHistoryItem {

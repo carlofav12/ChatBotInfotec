@@ -136,8 +136,7 @@ async def chat_endpoint(
             user_id=None,
             session_id=message.session_id or "default"
         )
-        
-        # Crear respuesta estructurada
+          # Crear respuesta estructurada
         response = ChatResponse(
             response=response_data.get("response", "Lo siento, no pude procesar tu solicitud."),
             timestamp=datetime.now(),
@@ -145,7 +144,9 @@ async def chat_endpoint(
             intent=response_data.get("intent", "general"),
             entities=response_data.get("entities", {}),
             products=response_data.get("products", []),
-            cart_total=response_data.get("cart_total")        )
+            cart_total=response_data.get("cart_total"),
+            cart_action=response_data.get("cart_action")
+        )
         logger.info(f"✅ Respuesta V3 generada exitosamente - Intent: {response.intent}")
         return response
         
