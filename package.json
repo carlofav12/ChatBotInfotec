@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.8"
+    "@tailwindcss/postcss": "^4.1.8",
+    "framer-motion": "^12.16.0"
   }
 }

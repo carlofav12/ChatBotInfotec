@@ -228,7 +228,7 @@ const ProductDetail: React.FC = () => {
                 : 'bg-[#003f7f] hover:bg-[#001F3F] text-white'
             }`}
           >
-            {addingToCart ? 'Agregando...' : 'Agregar al carrito'}
+            {addingToCart ? 'Agregando...' : 'Agregar al Carrito'}
           </button>
         </div>
       </div>

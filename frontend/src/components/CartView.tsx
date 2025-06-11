@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Truck, Receipt } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
+
 
 export const CartView: React.FC = () => {
   const navigate = useNavigate();
@@ -133,53 +134,64 @@ export const CartView: React.FC = () => {
               </div>
             </div>
 
-            {/* Resumen del pedido */}
+            {/* Resumen del pedido (Diseño renovado) */}
             <div className="lg:col-span-5 mt-10 lg:mt-0">
-              <div className="bg-white rounded-2xl shadow-xl p-8 sticky top-8 border border-gray-200">
-                <h2 className="text-2xl font-bold text-[#002855] mb-6">Resumen del pedido</h2>
-                <div className="space-y-4 text-sm text-gray-700">
-                  <div className="flex justify-between">
-                    <p>Subtotal</p>
-                    <p>S/ {state.total.toFixed(2)}</p>
+              <div className="bg-gradient-to-tr from-[#002855] via-[#003f7f] to-[#001F3F] text-white rounded-3xl shadow-2xl p-8 sticky top-8 border border-[#001f3f]/30">
+                <h2 className="text-3xl font-extrabold mb-6 text-center">Resumen del Pedido</h2>
+
+                <div className="space-y-5 text-md">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5 text-yellow-300" />
+                      <p>Subtotal</p>
+                    </div>
+                    <p className="font-semibold text-yellow-300">S/ {state.total.toFixed(2)}</p>
                   </div>
-                  <div className="flex justify-between">
-                    <p>Envío</p>
-                    <p className="font-semibold text-green-600">Gratis</p>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-green-400" />
+                      <p>Envío</p>
+                    </div>
+                    <p className="font-semibold text-green-400">Gratis</p>
                   </div>
-                  <div className="flex justify-between">
-                    <p>Impuestos estimados</p>
-                    <p>S/ {(state.total * 0.18).toFixed(2)}</p>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-blue-200" />
+                      <p>IGV (18%)</p>
+                    </div>
+                    <p className="text-blue-200">S/ {(state.total * 0.18).toFixed(2)}</p>
                   </div>
-                  <hr />
-                  <div className="flex justify-between font-bold text-md text-[#002855]">
+
+                  <hr className="border-gray-400/30 my-4" />
+
+                  <div className="flex justify-between items-center text-xl font-bold">
                     <p>Total</p>
-                    <p>S/ {(state.total * 1.18).toFixed(2)}</p>
+                    <p className="text-yellow-300">S/ {(state.total * 1.18).toFixed(2)}</p>
                   </div>
                 </div>
 
                 <button
                   onClick={handleCheckout}
-                  className={`w-full mt-6 ${buttonColor} py-3 px-4 rounded-full font-semibold transition shadow-md`}
+                  className="w-full mt-8 py-4 px-4 bg-[#FFD100] hover:bg-yellow-400 text-[#002855] text-lg font-bold rounded-full shadow-lg transition-all duration-300"
                 >
-                  Proceder al pago
+                  Proceder al Pago
                 </button>
 
-                <p className="mt-4 text-sm text-center text-gray-600">
+                <p className="mt-4 text-sm text-center text-white/80">
                   o{' '}
-                  <button
-                    onClick={() => navigate('/')}
-                    className="underline hover:text-[#FFD100]"
-                  >
-                    continuar comprando
+                  <button onClick={() => navigate('/')} className="underline hover:text-yellow-300">
+                    seguir comprando
                   </button>
                 </p>
 
-                <div className="mt-6 border-t pt-4 text-center text-xs text-gray-500">
-                  <p>Compra 100% segura</p>
-                  <div className="flex justify-center gap-2 mt-2">
-                    <div className="bg-gray-100 px-2 py-1 rounded">SSL</div>
-                    <div className="bg-gray-100 px-2 py-1 rounded">Visa</div>
-                    <div className="bg-gray-100 px-2 py-1 rounded">Mastercard</div>
+                <div className="mt-8 text-center text-xs text-white/60">
+                  <p>Compra protegida y segura</p>
+                  <div className="flex justify-center gap-3 mt-3">
+                    <div className="bg-white/10 px-3 py-1 rounded-full">SSL</div>
+                    <div className="bg-white/10 px-3 py-1 rounded-full">Visa</div>
+                    <div className="bg-white/10 px-3 py-1 rounded-full">Mastercard</div>
                   </div>
                 </div>
               </div>

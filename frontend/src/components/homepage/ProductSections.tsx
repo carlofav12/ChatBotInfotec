@@ -114,7 +114,7 @@ export const ProductSections: React.FC = () => {
                   <button
                     onClick={(e) => handleAddToCart(product, e)}
                     className="bg-[#FFD100] text-[#002855] p-2 rounded hover:bg-yellow-400 transition"
-                    title="Agregar al carrito"
+                    title="Agregar al Carrito"
                   >
                     <ShoppingCart className="w-4 h-4" />
                   </button>
