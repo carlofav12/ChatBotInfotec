@@ -193,7 +193,7 @@ class EnhancedInfotecChatbotV4:
                 bot_response = self.response_formatter.generate_product_response(products, use_case)
                 return bot_response, products
             else:
-                bot_response = "Por el momento no tenemos productos disponibles en nuestro inventario. Te sugerimos contactarnos directamente para consultar disponibilidad. 📞"
+                bot_response = "Por el momento  no tenemos productos disponibles en nuestro inventario. Te sugerimos contactarnos directamente para consultar disponibilidad. 📞"
                 return bot_response, []
         else:
             # Si no hay query de búsqueda, proporcionar ayuda general

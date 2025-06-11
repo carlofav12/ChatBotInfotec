@@ -103,7 +103,11 @@ class ChatbotConfig:
         "gaming": r"gaming|gamer|juegos",
         "monitor": r"monitor|pantalla",
         "teclado": r"teclado|keyboard",
-        "mouse": r"mouse|raton"
+        "mouse": r"mouse|raton",
+        "impresora": r"impresora[s]?|printer[s]?",
+        "procesador": r"procesador|cpu",
+        "audifono": r"audifono|Headphone",
+        
     }
     
     BRANDS = ["hp", "dell", "lenovo", "asus", "acer", "msi", "apple", "samsung"]
