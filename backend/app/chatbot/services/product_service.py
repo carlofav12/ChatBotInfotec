@@ -310,8 +310,7 @@ class ProductService:
             else:
                 # Obtener todos los productos activos
                 db_products = get_products(db, skip=0, limit=limit)
-            
-            # Convertir a modelos Pydantic y filtrar por stock
+              # Convertir a modelos Pydantic y filtrar por stock
             products = []
             for db_product in db_products:
                 try:
@@ -330,4 +329,166 @@ class ProductService:
             
         except Exception as e:
             logger.error(f"Error obteniendo productos para recomendación: {e}")
+            return []
+            
+    def find_similar_products(self, db: Session, product_name: str, limit: int = 3) -> List[ProductModel]:
+        """Buscar productos similares a un nombre de producto dado"""
+        try:
+            logger.info(f"Buscando productos similares a: '{product_name}'")
+            
+            # Extraer marca del nombre del producto
+            brand = None
+            for b in self.config.BRANDS:
+                if b.lower() in product_name.lower():
+                    brand = b
+                    break
+            
+            # Extraer tipo de producto
+            product_type = None
+            for p_type, pattern in self.config.PRODUCT_PATTERNS.items():
+                import re
+                if re.search(pattern, product_name.lower()):
+                    product_type = p_type
+                    break
+            
+            # Si no se detectó tipo de producto, intentar inferirlo de palabras clave comunes
+            if not product_type:
+                laptop_keywords = ['laptop', 'notebook', 'portátil', 'portatil']
+                pc_keywords = ['pc', 'desktop', 'computadora', 'torre', 'escritorio']
+                monitor_keywords = ['monitor', 'pantalla', 'display']
+                
+                if any(keyword in product_name.lower() for keyword in laptop_keywords):
+                    product_type = 'laptop'
+                elif any(keyword in product_name.lower() for keyword in pc_keywords):
+                    product_type = 'pc'
+                elif any(keyword in product_name.lower() for keyword in monitor_keywords):
+                    product_type = 'monitor'
+            
+            # Extraer palabras clave importantes (números de modelo, etc.)
+            keywords = []
+            words = product_name.lower().split()
+            for word in words:
+                # Mantener palabras que parecen importantes (números de modelo, etc.)
+                if any(c.isdigit() for c in word) or len(word) >= 4:
+                    # Filtrar palabras comunes no específicas
+                    common_words = ['para', 'como', 'mejor', 'buena', 'esta', 'este', 'cuál', 'cual', 'tiene', 'tienes']
+                    if word not in common_words:
+                        keywords.append(word)
+            
+            # Extraer especificaciones técnicas mencionadas
+            specs = []
+            spec_patterns = {
+                'ram': [r'(\d+)\s*(?:gb|ram)', r'ram\s*(?:de)?\s*(\d+)'],
+                'procesador': [r'(i\d)', r'(ryzen\s*\d)', r'(core\s*i\d)'],
+                'almacenamiento': [r'(\d+)\s*(?:gb|tb)\s*(?:ssd|hdd)', r'ssd\s*(?:de)?\s*(\d+)']
+            }
+            
+            for spec_type, patterns in spec_patterns.items():
+                for pattern in patterns:
+                    matches = re.findall(pattern, product_name.lower())
+                    if matches:
+                        specs.append(f"{spec_type}_{matches[0]}")
+            
+            logger.info(f"Análisis - Marca: {brand}, Tipo: {product_type}, Keywords: {keywords}, Specs: {specs}")
+            
+            # Construir la consulta
+            query = db.query(Product)
+            
+            # Primera estrategia: coincidencia exacta por palabras clave importantes
+            if keywords:
+                exact_query = db.query(Product)
+                # Usar la primera palabra clave importante como filtro principal
+                keyword_filters = []
+                for keyword in keywords:
+                    keyword_filters.append(Product.name.ilike(f"%{keyword}%"))
+                
+                from sqlalchemy import and_, or_
+                if len(keyword_filters) > 1:
+                    # Intentar encontrar productos que coincidan con al menos 2 palabras clave
+                    for i in range(len(keyword_filters) - 1):
+                        for j in range(i + 1, len(keyword_filters)):
+                            exact_query = exact_query.filter(and_(keyword_filters[i], keyword_filters[j]))
+                            exact_matches = exact_query.all()
+                            if exact_matches:
+                                logger.info(f"Encontrados {len(exact_matches)} productos con coincidencia exacta")
+                                result = []
+                                for product in exact_matches[:limit]:
+                                    try:
+                                        result.append(ProductModel.from_orm(product))
+                                    except Exception as e:
+                                        logger.warning(f"Error convirtiendo producto similar: {e}")
+                                return result
+            
+            # Si llegamos aquí, no hubo coincidencias exactas, usar estrategia más flexible
+            # Filtrar por marca si se detectó
+            if brand:
+                query = query.filter(Product.name.ilike(f"%{brand}%"))
+            
+            # Filtrar por palabras clave si se detectaron
+            if keywords:
+                # Usar al menos 2 keywords si hay disponibles, si no, usar solo 1
+                from sqlalchemy import or_
+                keyword_conditions = [Product.name.ilike(f"%{keyword}%") for keyword in keywords]
+                query = query.filter(or_(*keyword_conditions))
+            
+            # Filtrar por especificaciones técnicas
+            if specs and not keywords:
+                from sqlalchemy import or_
+                spec_conditions = [Product.name.ilike(f"%{spec.split('_')[1]}%") for spec in specs]
+                query = query.filter(or_(*spec_conditions))
+            
+            # Si no hay suficientes filtros, agregar filtro por tipo de producto
+            if not brand and not keywords and not specs and product_type:
+                # Convertir tipo de producto a palabras clave para búsqueda
+                type_keywords = {
+                    'laptop': ['laptop', 'notebook', 'portátil'],
+                    'pc': ['pc', 'computadora', 'desktop', 'escritorio'],
+                    'monitor': ['monitor', 'pantalla'],
+                    'teclado': ['teclado', 'keyboard'],
+                    'mouse': ['mouse', 'ratón'],
+                    'audifonos': ['audífonos', 'auriculares', 'headset'],
+                    'componente_pc': ['tarjeta', 'procesador', 'memoria', 'disco']
+                }.get(product_type, [product_type])
+                
+                from sqlalchemy import or_
+                conditions = [Product.name.ilike(f"%{kw}%") for kw in type_keywords]
+                query = query.filter(or_(*conditions))
+            
+            # Ejecutar la consulta
+            similar_products = query.limit(limit).all()
+            
+            # Si no hay resultados y tenemos un tipo de producto, intentar buscar solo por tipo
+            if not similar_products and product_type:
+                from sqlalchemy import or_
+                type_keywords = {
+                    'laptop': ['laptop', 'notebook', 'portátil'],
+                    'pc': ['pc', 'computadora', 'desktop', 'escritorio'],
+                    'monitor': ['monitor', 'pantalla'],
+                    'teclado': ['teclado', 'keyboard'],
+                    'mouse': ['mouse', 'ratón'],
+                    'audifonos': ['audífonos', 'auriculares', 'headset'],
+                    'componente_pc': ['tarjeta', 'procesador', 'memoria', 'disco']
+                }.get(product_type, [product_type])
+                
+                fallback_query = db.query(Product)
+                conditions = [Product.name.ilike(f"%{kw}%") for kw in type_keywords]
+                fallback_query = fallback_query.filter(or_(*conditions))
+                
+                # Ordenar por rating para mostrar los mejores primero
+                fallback_query = fallback_query.order_by(Product.rating.desc())
+                
+                similar_products = fallback_query.limit(limit).all()
+            
+            result = []
+            for product in similar_products:
+                try:
+                    result.append(ProductModel.from_orm(product))
+                except Exception as e:
+                    logger.warning(f"Error convirtiendo producto similar: {e}")
+            
+            logger.info(f"Encontrados {len(result)} productos similares")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error buscando productos similares a '{product_name}': {e}")
             return []

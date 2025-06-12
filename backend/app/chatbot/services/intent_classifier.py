@@ -21,7 +21,15 @@ class IntentClassifier:
         """Inicializar el modelo de Gemini"""
         try:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            # Intentar primero con 'gemini-1.5-flash', y si falla, usar 'gemini-pro'
+            try:
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                logger.info("Clasificador de intenciones inicializado con gemini-1.5-flash")
+            except Exception as model_error:
+                logger.warning(f"Error al inicializar gemini-1.5-flash: {model_error}. Intentando con gemini-pro...")
+                self.model = genai.GenerativeModel('gemini-pro')
+                logger.info("Clasificador de intenciones inicializado con gemini-pro como fallback")
+            
             logger.info("Clasificador de intenciones inicializado correctamente")
         except Exception as e:
             logger.error(f"Error inicializando clasificador: {e}")
@@ -220,11 +228,21 @@ IMPORTANTE:
         if any(keyword in message_lower for keyword in product_keywords):
             if any(prod in message_lower for prod in product_types):
                 is_product_request = True
-                
-        # Patrón específico: "Cual es la mejor laptop que tienes"
+                  # Patrón específico: "Cual es la mejor laptop que tienes"
         if ("cual" in message_lower or "que" in message_lower or "cuál" in message_lower or "qué" in message_lower) and "mejor" in message_lower:
             if any(prod in message_lower for prod in product_types) and ("tienes" in message_lower or "tienen" in message_lower):
                 is_product_request = True
+                logger.info("Detectada solicitud específica de 'mejor laptop que tienes'")
+            # Capturar frases como "cual es la mejor" sin mencionar el producto específico
+            elif "mejor" in message_lower and len(message_lower.split()) <= 6:
+                is_product_request = True
+                logger.info("Detectada solicitud genérica de 'mejor producto'")
+        
+        # Detectar patrones como "dame/muestra/necesito la mejor laptop"
+        if any(verb in message_lower for verb in ["dame", "muestra", "necesito", "quiero", "busco"]) and "mejor" in message_lower:
+            if any(prod in message_lower for prod in product_types):
+                is_product_request = True
+                logger.info("Detectada solicitud de 'mejor producto' con verbo de acción")
         
         # Detectar patrón de pregunta tecnológica "qué es mejor X o Y"
         is_tech_comparison = False

@@ -128,14 +128,49 @@ async def chat_endpoint(
         
         if len(message.message) > 1000:
             raise HTTPException(status_code=400, detail="El mensaje es demasiado largo (máximo 1000 caracteres)")
-        
-        # Generar respuesta con el chatbot V3 mejorado
+          # Generar respuesta con el chatbot V3 mejorado
         response_data = chatbot.process_message(
             message=message.message.strip(), 
             db=db,
             user_id=None,
             session_id=message.session_id or "default"
         )
+        
+        # Convertir productos a diccionarios si es necesario
+        products_list = []
+        if response_data.get("products"):
+            for product in response_data["products"]:
+                if hasattr(product, 'dict'):
+                    # Si es un objeto Pydantic, usar el método dict()
+                    products_list.append(product.dict())
+                elif hasattr(product, '__dict__'):
+                    # Si es un objeto SQLAlchemy, convertir manualmente
+                    products_list.append({
+                        "id": product.id,
+                        "name": product.name,
+                        "description": product.description,
+                        "price": product.price,
+                        "original_price": product.original_price,
+                        "sku": product.sku,
+                        "brand": product.brand,
+                        "model": product.model,
+                        "image_url": product.image_url,
+                        "rating": product.rating,
+                        "review_count": product.review_count,
+                        "stock_quantity": product.stock_quantity,
+                        "specifications": product.specifications,
+                        "category_id": product.category_id,
+                        "is_active": product.is_active,
+                        "is_featured": product.is_featured,
+                        "is_new": product.is_new
+                    })
+                elif isinstance(product, dict):
+                    # Si ya es un diccionario, usarlo directamente
+                    products_list.append(product)
+                else:
+                    # Caso de respaldo: convertir a string
+                    products_list.append({"name": str(product)})
+          
           # Crear respuesta estructurada
         response = ChatResponse(
             response=response_data.get("response", "Lo siento, no pude procesar tu solicitud."),
@@ -143,7 +178,7 @@ async def chat_endpoint(
             tokens_used=None,
             intent=response_data.get("intent", "general"),
             entities=response_data.get("entities", {}),
-            products=response_data.get("products", []),
+            products=products_list,
             cart_total=response_data.get("cart_total"),
             cart_action=response_data.get("cart_action")
         )

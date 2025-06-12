@@ -33,7 +33,7 @@ class ConversationManager:
             "bot_response": bot_response,
             "intent": intent,
             "entities": entities,
-            "showed_products": products_shown,
+            "products_shown": products_shown,
             "products_list": products_list or []
         }
         
@@ -73,7 +73,7 @@ class ConversationManager:
         if not history:
             return {"message_count": 0, "products_shown": 0, "start_time": None, "last_activity": None}
         
-        products_shown_count = sum(1 for conv in history if conv.get("showed_products", False))
+        products_shown_count = sum(1 for conv in history if conv.get("products_shown", False))
         
         return {
             "message_count": len(history),
