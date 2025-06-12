@@ -254,6 +254,163 @@ IMPORTANTE:
         response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
         return response
 
+    def recommend_top_products_with_context(
+        self,
+        candidate_products: List[Dict[str, Any]],
+        user_query: str,
+        conversation_context: str,
+        category: Optional[str] = None,
+        use_case: Optional[str] = None,
+        count: int = 3
+    ) -> tuple[str, List[str]]:
+        """
+        Genera recomendaciones inteligentes con contexto conversacional y devuelve nombres de productos
+        """
+        logger.info(f"Generando recomendaciones IA con contexto para {len(candidate_products)} productos")
+        
+        if not self.model:
+            return self._fallback_recommendation_with_context(candidate_products, user_query, count)
+        
+        try:
+            prompt = self._build_context_recommendation_prompt(
+                candidate_products, user_query, conversation_context, category, use_case, count
+            )
+            response = self.model.generate_content(prompt)
+            
+            # Extraer nombres de productos de la respuesta
+            product_names = self._extract_product_names_from_response(response.text, candidate_products)
+            
+            return response.text.strip(), product_names
+            
+        except Exception as e:
+            logger.error(f"Error generando recomendaciones con contexto: {e}")
+            return self._fallback_recommendation_with_context(candidate_products, user_query, count)
+
+    def _build_context_recommendation_prompt(
+        self,
+        products: List[Dict[str, Any]],
+        user_query: str,
+        conversation_context: str,
+        category: Optional[str],
+        use_case: Optional[str],
+        count: int
+    ) -> str:
+        """Construir prompt para recomendaciones con contexto conversacional"""
+        
+        # Formatear productos para el prompt
+        products_text = ""
+        for i, product in enumerate(products[:50], 1):  # Máximo 50 productos para análisis
+            specs_text = ""
+            if product.get("specifications"):
+                specs = product["specifications"]
+                if isinstance(specs, dict):
+                    specs_text = ", ".join([f"{k}: {v}" for k, v in specs.items() if v])
+                else:
+                    specs_text = str(specs)
+            
+            products_text += f"""
+{i}. {product.get('name', 'N/A')}
+   - Precio: S/ {product.get('price', 0)}
+   - Marca: {product.get('brand', 'N/A')}
+   - Rating: {product.get('rating', 'N/A')}/5
+   - Stock: {product.get('stock_quantity', 0)}
+   - Descripción: {product.get('description', 'N/A')}
+   - Especificaciones: {specs_text or 'N/A'}
+"""
+
+        context_info = ""
+        if category:
+            context_info += f"Categoría solicitada: {category}\n"
+        if use_case:
+            context_info += f"Caso de uso: {use_case}\n"
+
+        return f"""Eres InfoBot de GRUPO INFOTEC, especialista en tecnología. Analiza estos {len(products)} productos y recomienda los {count} mejores considerando el CONTEXTO COMPLETO de la conversación.
+
+CONTEXTO DE LA CONVERSACIÓN:
+{conversation_context}
+
+CONSULTA ACTUAL: "{user_query}"
+{context_info}
+
+PRODUCTOS DISPONIBLES:
+{products_text}
+
+INSTRUCCIONES CRÍTICAS:
+1. LEE TODO EL CONTEXTO conversacional para entender las necesidades específicas del usuario
+2. Si mencionó un uso específico (diseño, gaming, trabajo, etc.), PRIORIZA productos adecuados para esa tarea
+3. Analiza TODOS los productos considerando: especificaciones técnicas, precio, rating, stock
+4. Selecciona los {count} mejores productos que respondan al contexto completo
+5. Ordénalos del mejor al menos recomendado
+
+FORMATO DE RESPUESTA (máximo 150 palabras):
+🎯 **Mis {count} mejores recomendaciones para [mencionar uso específico si aplica]:**
+
+**1. [Nombre EXACTO del producto]** (S/ [precio])
+✨ [Razón específica para el uso mencionado] - [Beneficio técnico específico]
+
+**2. [Nombre EXACTO del producto]** (S/ [precio])  
+✨ [Razón específica para el uso mencionado] - [Beneficio técnico específico]
+
+**3. [Nombre EXACTO del producto]** (S/ [precio])
+✨ [Razón específica para el uso mencionado] - [Beneficio técnico específico]
+
+💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊
+
+IMPORTANTE: 
+- Solo recomienda productos de la lista proporcionada
+- Usa los nombres EXACTOS de los productos
+- Considera el contexto conversacional completo
+- Sé específico sobre por qué cada producto es adecuado para el uso mencionado
+"""
+
+    def _extract_product_names_from_response(self, response_text: str, candidate_products: List[Dict[str, Any]]) -> List[str]:
+        """Extraer nombres de productos específicos de la respuesta de la IA"""
+        product_names = []
+        
+        # Buscar nombres de productos en la respuesta
+        for product in candidate_products:
+            product_name = product.get('name', '')
+            if product_name and product_name.lower() in response_text.lower():
+                product_names.append(product_name)
+                if len(product_names) >= 5:  # Máximo 5 productos
+                    break
+        
+        return product_names
+
+    def _fallback_recommendation_with_context(
+        self,
+        products: List[Dict[str, Any]],
+        user_query: str,
+        count: int
+    ) -> tuple[str, List[str]]:
+        """Respuesta de respaldo para recomendaciones con contexto"""
+        # Ordenar productos por rating y precio para dar mejores primero
+        sorted_products = sorted(
+            products, 
+            key=lambda x: (x.get('rating', 0) or 0, -(x.get('price', 0) or 0)), 
+            reverse=True
+        )
+        
+        response = f"🎯 **Mis {count} mejores recomendaciones:**\n\n"
+        product_names = []
+        
+        for i, product in enumerate(sorted_products[:count], 1):
+            name = product.get('name', 'Producto')
+            price = product.get('price', 0)
+            brand = product.get('brand', '')
+            rating = product.get('rating', 0)
+            
+            brand_text = f" de {brand}" if brand else ""
+            rating_text = f" - Rating {rating}/5" if rating else ""
+            
+            response += f"**{i}. {name}** (S/ {price})\n"
+            response += f"✨ Excelente opción{brand_text}{rating_text}\n\n"
+            
+            product_names.append(name)
+        
+        response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
+        return response, product_names
+
     def answer_tech_question(self, question: str, context: str = "") -> str:
         """
         Responde preguntas generales sobre tecnología usando IA.

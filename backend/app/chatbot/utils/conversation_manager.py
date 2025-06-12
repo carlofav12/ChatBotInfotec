@@ -1,4 +1,4 @@
-# filepath: backend/app/chatbot/utils/conversation_manager.py
+﻿# filepath: backend/app/chatbot/utils/conversation_manager.py
 """
 Manejador de conversaciones y contexto
 Maneja el historial de conversaciones y el contexto entre mensajes
@@ -21,7 +21,8 @@ class ConversationManager:
         return self.session_conversations.get(session_id, [])
     
     def save_conversation(self, session_id: str, user_message: str, bot_response: str, 
-                         intent: str, entities: Dict[str, Any], products_shown: bool = False) -> None:
+                         intent: str, entities: Dict[str, Any], products_shown: bool = False,
+                         products_list: List[Dict] = None) -> None:
         """Guardar conversación en el historial"""
         if session_id not in self.session_conversations:
             self.session_conversations[session_id] = []
@@ -32,7 +33,8 @@ class ConversationManager:
             "bot_response": bot_response,
             "intent": intent,
             "entities": entities,
-            "showed_products": products_shown
+            "showed_products": products_shown,
+            "products_list": products_list or []
         }
         
         self.session_conversations[session_id].append(conversation_entry)
@@ -79,3 +81,10 @@ class ConversationManager:
             "start_time": history[0]["timestamp"] if history else None,
             "last_activity": history[-1]["timestamp"] if history else None
         }
+    
+    def clear_all_sessions(self) -> int:
+        """Limpiar todos los historiales de conversación"""
+        session_count = len(self.session_conversations)
+        self.session_conversations.clear()
+        logger.info(f"Todos los historiales eliminados ({session_count} sesiones)")
+        return session_count

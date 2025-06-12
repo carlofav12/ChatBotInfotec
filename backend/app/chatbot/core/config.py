@@ -202,31 +202,54 @@ class ChatbotConfig:
         r"agrega(?:r)? al carrito", r"a[ñn]ade(?:r)? al carrito", r"quiero comprar",
         r"comprar est[oa]", r"pon(?:er)? en el carrito", r"lo llevo",
         r"agregar", r"añadir", "carrito", r"comprar", r"llevar", r"quiero", r"necesito", 
-        r"agrega", r"puedes agregar", r"agregarlo", r"añadirlo", r"comprarlo", r"lo quiero", 
-        r"lo agrego", r"puedes agregarlo", r"me lo das", r"lo llevo"
+        r"agrega", r"puedes agregar", r"agregarlo", r"añadirlo", r"comprarlo", r"lo quiero",        r"lo agrego", r"puedes agregarlo", r"me lo das", r"lo llevo"
     ]
     
     SPEC_PATTERNS = [
         "especificaciones", "specs", "características", "detalles", 
         "información detallada", "especificacion", "que especificacion",
         "qué especificación", "info", "más info"
+    ]    # Patrones específicos para especificaciones con referencias contextuales
+    CONTEXTUAL_SPEC_PATTERNS = [
+        r"(?:especificaciones?|specs|características|detalles|info)\s+(?:de\s+)?(?:la|el)\s+(?:segunda?|segundo|primera?|primero|tercera?|tercero)",
+        r"(?:puedes?\s+)?mostrar(?:me)?\s+(?:especificaciones?|specs|características|detalles)\s+(?:de\s+)?(?:la|el)\s+(?:segunda?|segundo|primera?|primero|tercera?|tercero)",
+        r"(?:quiero|me\s+interesa)\s+(?:ver|conocer)?\s*(?:las?\s+)?(?:especificaciones?|specs|características|detalles)\s+(?:de\s+)?(?:la|el)\s+(?:segunda?|segundo|primera?|primero|tercera?|tercero)",
+        r"(?:más\s+)?(?:información|info|detalles)\s+(?:de\s+)?(?:la|el)\s+(?:segunda?|segundo|primera?|primero|tercera?|tercero)",
+        
+        # Patrones con "cuales son" + referencia ordinal
+        r"(?:cuales?|qu[eé])\s+son\s+(?:las?\s+)?(?:especificaciones?|características|detalles)\s+(?:de\s+)?(?:la|el)\s+(?:segunda?|segundo|primera?|primero|tercera?|tercero)",
+        r"(?:cuales?|qu[eé])\s+son\s+(?:las?\s+)?(?:especificaciones?|características|detalles)\s+(?:de\s+)?(?:la|el)?\s*(?:1|2|3)",
+        
+        # Patrones con números en lugar de ordinales
+        r"(?:que|qu[eé])\s+(?:especificaciones?|specs|características|detalles|info)?\s*(?:tiene|hay)\s+(?:el|la)?\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
+        r"(?:especificaciones?|specs|características|detalles|info)\s+(?:del|de\s+la?)\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
+        r"(?:que|qu[eé])\s+(?:detalles|especificaciones?|info)\s+(?:tiene|hay)\s+(?:el|la)?\s*(?:1|2|3)",
+        r"(?:detalles|especificaciones?|info)\s+(?:del|de\s+la?)\s*(?:1|2|3)",
+        r"(?:que|qu[eé])\s+(?:tal|sobre|de)\s+(?:el|la)?\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
+        r"(?:ver|mostrar|conocer)\s+(?:el|la)?\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
     ]
     
     RECOMMEND_PATTERNS = [
         "recomiendas", "recomendación", "recomendaciones", "cual recomiendas", 
         "qué recomiendas", "cual me recomiendas", "que me recomiendas", 
-        "cual es mejor", "cuál es mejor", "cual eliges", "sugieres", "recomiendan"
-    ]
-      # Contextos referenciales
+        "cual es mejor", "cuál es mejor", "cual eliges", "sugieres", "recomiendan"    ]
+    
+    # Contextos referenciales
     CONTEXTUAL_REFS = [
-        r"es[ea]", r"es[oa]s", r"el anterior", r"la primera", r"el [uú]ltimo", r"ese modelo"
+        r"es[ea]", r"es[oa]s", r"el anterior", r"la primera?", r"el [uú]ltimo", r"ese modelo",
+        r"la segunda?", r"el segundo", r"la tercera?", r"el tercero", r"el primero",
+        r"esa laptop", r"ese equipo", r"esa pc", r"el de arriba", r"el de abajo",
+        r"especificaciones? de la segunda?", r"especificaciones? del segundo",
+        r"especificaciones? de la primera?", r"especificaciones? del primero",
+        r"especificaciones? de la tercera?", r"especificaciones? del tercero"
     ]
     
     SPECIFIC_PRODUCT_PATTERNS = [
         r"(?:laptop|pc|monitor|tablet)\s+(?:[a-zA-Z0-9]+\s*){1,5}", 
         r"(?:[a-zA-Z]+\s+){0,2}(?:xps|macbook|thinkpad|rog|omen|spectre|zenbook|ideapad|legion|alienware|envy|pavilion|aspire|predator|surface)\s*\d*\s*[a-zA-Z0-9]*" # Ej: Dell XPS 13, ROG Strix G15
     ]
-      # Patrones para comparación de productos ESPECÍFICOS (marcas/modelos concretos)
+    
+    # Patrones para comparación de productos ESPECÍFICOS (marcas/modelos concretos)
     COMPARISON_PATTERNS = [
         r"compara(?:r)?\s+(.+)\s+(?:con|vs|versus)\s+(.+)",     # "compara lenovo thinkpad con hp pavilion"
         r"diferencias?\s+entre\s+(.+)\s+y\s+(.+)",              # "diferencias entre asus rog y acer predator"

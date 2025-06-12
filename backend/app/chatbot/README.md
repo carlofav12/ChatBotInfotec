@@ -12,11 +12,13 @@ backend/app/chatbot/
 ├── 📁 core/                            # Núcleo del sistema
 │   ├── __init__.py                     # Exports del módulo core
 │   ├── config.py                       # ⚙️ Configuraciones y constantes
-│   └── enhanced_chatbot_v4.py          # 🧠 Chatbot principal (orquestador)
+│   └── enhanced_chatbot_v4_fixed.py   # 🧠 Chatbot principal (orquestador)
 ├── 📁 services/                        # Servicios de negocio
 │   ├── __init__.py                     # Exports del módulo services
 │   ├── product_service.py              # 🛍️ Manejo de productos y carrito
-│   └── ai_response_generator.py        # 🤖 Generación de respuestas con IA
+│   ├── enhanced_llm_service.py         # 🤖 Servicio LLM mejorado con Gemini AI
+│   ├── ai_response_generator.py        # 🎨 Generación de respuestas generales
+│   └── llm_service.py                  # 📡 Servicio base de comunicación con LLM
 └── 📁 utils/                           # Utilidades y herramientas
     ├── __init__.py                     # Exports del módulo utils
     ├── entity_extractor.py             # 🔍 Extracción de entidades
@@ -31,6 +33,7 @@ backend/app/chatbot/
 ### 🏛️ **Core (Núcleo)**
 
 #### `core/config.py` - Configuración Central
+
 ```python
 class ChatbotConfig:
     COMPANY_INFO = {...}           # Información de GRUPO INFOTEC
@@ -41,20 +44,24 @@ class ChatbotConfig:
 ```
 
 **🎯 Responsabilidades:**
+
 - ⚙️ Almacenar toda la configuración estática
 - 📊 Definir patrones de reconocimiento
 - 🏢 Información corporativa de GRUPO INFOTEC
 - 💬 Respuestas predefinidas para consultas comunes
 
-#### `core/enhanced_chatbot_v4.py` - Orquestador Principal
+#### `core/enhanced_chatbot_v4_fixed.py` - Orquestador Principal
+
 ```python
 class EnhancedInfotecChatbotV4:
     def process_message(self, message, db, user_id, session_id) -> Dict[str, Any]
     def _handle_product_request(self, entities, conversation_history, db, user_id, session_id)
     def _handle_general_conversation(self, message, conversation_history)
+    def _handle_tech_question(self, message, entities, conversation_history) -> str
 ```
 
 **🎯 Responsabilidades:**
+
 - 🧠 Coordinar todos los módulos del sistema
 - 🔄 Manejar el flujo principal de procesamiento
 - ⚡ Decidir qué tipo de respuesta generar
@@ -64,7 +71,25 @@ class EnhancedInfotecChatbotV4:
 
 ### 🛠️ **Services (Servicios)**
 
+#### `services/enhanced_llm_service.py` - Servicio LLM Inteligente
+
+```python
+class EnhancedLLMService:
+    def get_tech_response(self, message, entities, context_str) -> str
+    def get_general_response(self, message, context_str) -> str
+    def get_product_recommendation_response(self, message, entities, context_str) -> str
+    def _build_tech_prompt(self, message, entities, context_str) -> str
+```
+
+**🎯 Responsabilidades:**
+
+- 🧠 Generar respuestas inteligentes usando Gemini AI
+- 🔧 Manejar consultas tecnológicas específicas (AMD vs Intel, etc.)
+- 💡 Proporcionar respuestas educativas sobre tecnología
+- 🎯 Clasificar y responder según el tipo de consulta
+
 #### `services/product_service.py` - Gestión de Productos
+
 ```python
 class ProductService:
     def search_products(self, db, search_query, max_price) -> List[ProductModel]
@@ -73,12 +98,14 @@ class ProductService:
 ```
 
 **🎯 Responsabilidades:**
+
 - 🔍 Búsqueda inteligente de productos
 - 📦 Gestión de inventario y stock
 - 🛒 Operaciones del carrito de compras
 - 💰 Validación de precios y disponibilidad
 
 #### `services/ai_response_generator.py` - IA Conversacional
+
 ```python
 class AIResponseGenerator:
     def generate_general_response(self, message, context_str) -> str
@@ -86,6 +113,7 @@ class AIResponseGenerator:
 ```
 
 **🎯 Responsabilidades:**
+
 - 🤖 Generar respuestas usando Gemini AI
 - 💭 Manejar conversaciones naturales
 - 🎨 Personalizar el tono según GRUPO INFOTEC
@@ -96,20 +124,27 @@ class AIResponseGenerator:
 ### 🔧 **Utils (Utilidades)**
 
 #### `utils/entity_extractor.py` - Análisis de Mensajes
+
 ```python
 class EntityExtractor:
     def extract_entities(self, message, conversation_history) -> Dict[str, Any]
     def should_show_products(self, entities, conversation_history) -> bool
     def get_search_query_from_context(self, entities, conversation_history) -> str
+    def _extract_tech_question(self, message_lower, entities) -> None
+    def _extract_comparison_entities(self, message_lower, entities) -> None
 ```
 
 **🎯 Responsabilidades:**
+
 - 🔍 Extraer entidades de mensajes (productos, marcas, precios)
 - 🎯 Detectar intenciones del usuario
 - 🧩 Analizar contexto conversacional
 - ⚡ Determinar acciones a ejecutar
+- 🤖 Identificar preguntas tecnológicas generales
+- 📊 Clasificar tipos de consulta (laptop_vs_pc, amd_vs_intel, brand_comparison)
 
 #### `utils/response_formatter.py` - Formateo de Respuestas
+
 ```python
 class ResponseFormatter:
     def generate_product_response(self, products, use_case) -> str
@@ -118,12 +153,14 @@ class ResponseFormatter:
 ```
 
 **🎯 Responsabilidades:**
+
 - 📝 Formatear respuestas de productos
 - 📋 Generar especificaciones técnicas
 - 🎨 Aplicar estilos y emojis consistentes
 - 💡 Crear mensajes atractivos y útiles
 
 #### `utils/conversation_manager.py` - Gestión de Contexto
+
 ```python
 class ConversationManager:
     def get_conversation_history(self, session_id) -> List[Dict[str, Any]]
@@ -132,6 +169,7 @@ class ConversationManager:
 ```
 
 **🎯 Responsabilidades:**
+
 - 💾 Mantener historial de conversaciones
 - 🔄 Gestionar contexto entre mensajes
 - 📊 Generar estadísticas de uso
@@ -142,6 +180,7 @@ class ConversationManager:
 ## 🚀 Cómo Usar el Chatbot
 
 ### Importación y Uso Básico
+
 ```python
 from app.chatbot import EnhancedInfotecChatbotV4
 
@@ -161,6 +200,7 @@ print(response["products"])  # Productos encontrados
 ```
 
 ### Estructura de Respuesta
+
 ```python
 {
     "response": "¡Encontré laptops gaming perfectas para ti!...",
@@ -184,19 +224,51 @@ print(response["products"])  # Productos encontrados
 
 ---
 
+## 🎯 Tipos de Consultas Soportadas
+
+### 📱 **Consultas de Productos**
+
+- Búsqueda por categoría: `"busco una laptop gaming"`
+- Búsqueda por marca: `"quiero una laptop ASUS"`
+- Búsqueda por presupuesto: `"laptop hasta 3000 soles"`
+- Especificaciones: `"especificaciones del segundo producto"`
+
+### 🤖 **Preguntas Tecnológicas Generales**
+
+- Comparaciones de marcas: `"¿qué es mejor ASUS o Lenovo?"`
+- Comparaciones de componentes: `"¿AMD o Intel?"`
+- Comparaciones de tipos: `"¿laptop o PC para gaming?"`
+- Diferencias técnicas: `"diferencia entre SSD y HDD"`
+
+### 🛒 **Gestión de Carrito**
+
+- Agregar productos: `"agregar al carrito"`
+- Referencias contextuales: `"quiero el primero"`
+
+### 💬 **Conversación General**
+
+- Saludos y despedidas
+- Información de la empresa
+- Consultas sobre servicios
+
+---
+
 ## 🔄 Flujo de Funcionamiento
 
 ```mermaid
 graph TD
     A[Usuario envía mensaje] --> B[EnhancedInfotecChatbotV4]
     B --> C[EntityExtractor: Analizar mensaje]
-    C --> D{¿Busca productos?}
-    D -->|Sí| E[ProductService: Buscar productos]
-    D -->|No| F[AIResponseGenerator: Respuesta general]
-    E --> G[ResponseFormatter: Formatear productos]
-    F --> G
-    G --> H[ConversationManager: Guardar contexto]
-    H --> I[Retornar respuesta al usuario]
+    C --> D{¿Tipo de consulta?}
+    D -->|Pregunta tecnológica| E[EnhancedLLMService: Respuesta técnica]
+    D -->|Busca productos| F[ProductService: Buscar productos]
+    D -->|Conversación general| G[AIResponseGenerator: Respuesta general]
+    E --> H[ResponseFormatter: Formatear respuesta]
+    F --> I[ResponseFormatter: Formatear productos]
+    G --> H
+    H --> J[ConversationManager: Guardar contexto]
+    I --> J
+    J --> K[Retornar respuesta al usuario]
 ```
 
 ---
@@ -204,26 +276,32 @@ graph TD
 ## ✅ Beneficios de la Modularización
 
 ### 🧩 **Separación de Responsabilidades**
+
 - Cada módulo tiene una función específica y bien definida
 - Fácil localizar funcionalidades específicas
 
 ### 🔧 **Mantenibilidad Mejorada**
+
 - Cambios en un módulo no afectan otros
 - Código más limpio y organizado
 
 ### 🧪 **Facilidad de Testing**
+
 - Cada módulo se puede probar independientemente
 - Tests más específicos y eficientes
 
 ### 📈 **Escalabilidad**
+
 - Fácil agregar nuevas funcionalidades
 - Estructura preparada para crecimiento
 
 ### 🔄 **Reutilización**
+
 - Módulos pueden usarse en otros proyectos
 - Componentes independientes y modulares
 
 ### 🐛 **Debugging Simplificado**
+
 - Errores más fáciles de localizar
 - Logs más específicos por módulo
 
@@ -232,12 +310,14 @@ graph TD
 ## 🛠️ Configuración y Dependencias
 
 ### Variables de Entorno Requeridas
+
 ```bash
 GOOGLE_API_KEY=tu-google-gemini-api-key
 DATABASE_URL=postgresql://user:pass@localhost/dbname
 ```
 
 ### Dependencias Python
+
 ```bash
 pip install google-generativeai sqlalchemy pydantic fastapi
 ```
@@ -249,6 +329,7 @@ pip install google-generativeai sqlalchemy pydantic fastapi
 El chatbot incluye endpoints para monitoreo:
 
 ### Limpiar Historial
+
 ```http
 POST /api/clear-history
 {
@@ -257,16 +338,18 @@ POST /api/clear-history
 ```
 
 ### Obtener Estadísticas
+
 ```http
 GET /api/conversation-stats?session_id=opcional
 ```
 
 **Respuesta:**
+
 ```json
 {
-    "total_sessions": 5,
-    "total_messages": 147,
-    "active_sessions": ["user-1", "user-2", "user-3"]
+  "total_sessions": 5,
+  "total_messages": 147,
+  "active_sessions": ["user-1", "user-2", "user-3"]
 }
 ```
 

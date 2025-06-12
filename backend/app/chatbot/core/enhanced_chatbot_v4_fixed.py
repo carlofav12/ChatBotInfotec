@@ -70,10 +70,10 @@ class EnhancedInfotecChatbotV4:
             else:
                 # Generar respuesta general
                 bot_response = self._handle_general_conversation(message, conversation_history)
-            
-            # Guardar conversación
+              # Guardar conversación
+            products_list = [p.dict() if hasattr(p, 'dict') else p for p in products] if products else []
             self.conversation_manager.save_conversation(
-                session_id, message, bot_response, intent, entities, len(products) > 0
+                session_id, message, bot_response, intent, entities, len(products) > 0, products_list
             )
             
             return {
@@ -177,21 +177,24 @@ class EnhancedInfotecChatbotV4:
         
         bot_response = self.llm_service.generate_comparison_response(
             product1_data.get('name', 'Producto 1'),
-            product2_data.get('name', 'Producto 2'),
-            attributes,
+            product2_data.get('name', 'Producto 2'),        attributes,
             product1_data,
             product2_data
         )
         
         return bot_response, comparison_data_list, None
     
-    def _handle_intelligent_recommendation_request(self, entities: Dict[str, Any], db: Session) -> tuple:
+    def _handle_intelligent_recommendation_request(self, entities: Dict[str, Any], db: Session, 
+                                                  conversation_history: Optional[List[Dict[str, Any]]] = None) -> tuple:
         """Manejar solicitud de recomendación inteligente usando IA para analizar toda la BD"""
         logger.info("Procesando solicitud de recomendación inteligente")
         
         category = entities.get("categoria_recomendacion") or entities.get("producto")
         use_case = entities.get("uso")
         original_query = entities.get("_original_message", "recomendación de productos")
+        
+        # Construir contexto conversacional completo
+        conversation_context = self._build_conversation_context(conversation_history, original_query)
         
         # Obtener todos los productos relevantes para análisis
         candidate_products = self.product_service.get_all_products_for_recommendation(
@@ -232,19 +235,30 @@ class EnhancedInfotecChatbotV4:
                     product_dict["specifications"] = {"details": str(product.specifications)}
             
             products_for_llm.append(product_dict)
-        
-        # Usar IA para analizar y recomendar los mejores productos
+          # Usar IA para analizar y recomendar los mejores productos
         try:
-            bot_response = self.llm_service.recommend_top_products(
+            bot_response, recommended_product_names = self.llm_service.recommend_top_products_with_context(
                 candidate_products=products_for_llm,
                 user_query=original_query,
+                conversation_context=conversation_context,
                 category=category,
                 use_case=use_case,
                 count=3  # Recomendar top 3
             )
             
-            # Devolver los productos recomendados (primeros 3-5 para mostrar en la UI)
-            recommended_products = candidate_products[:5]
+            # Filtrar productos específicos recomendados por la IA
+            recommended_products = []
+            for product_name in recommended_product_names:
+                for product in candidate_products:
+                    if product_name.lower() in product.name.lower() or product.name.lower() in product_name.lower():
+                        recommended_products.append(product)
+                        break
+                if len(recommended_products) >= 5:  # Máximo 5 para la UI
+                    break
+            
+            # Si no encontramos coincidencias exactas, usar los mejores por rating
+            if not recommended_products:
+                recommended_products = sorted(candidate_products, key=lambda x: (x.rating or 0, -x.price), reverse=True)[:5]
             
         except Exception as e:
             logger.error(f"Error en recomendación inteligente: {e}")            # Fallback: usar formatter tradicional con los mejores productos por rating
@@ -276,6 +290,34 @@ class EnhancedInfotecChatbotV4:
             bot_response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
         
         return bot_response, recommended_products
+    
+    def _build_conversation_context(self, conversation_history: Optional[List[Dict[str, Any]]], 
+                                   current_query: str) -> str:
+        """Construir contexto conversacional completo para mejores recomendaciones"""
+        if not conversation_history:
+            return current_query
+        
+        # Tomar los últimos 5 mensajes para contexto
+        recent_messages = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+        
+        context_parts = []
+        for msg in recent_messages:
+            # Adaptar al formato del ConversationManager
+            user_msg = msg.get("user_message", "")
+            bot_response = msg.get("bot_response", "")
+            
+            if user_msg:
+                context_parts.append(f"Usuario: {user_msg}")
+            if bot_response:
+                # Solo incluir partes relevantes de las respuestas del bot
+                if len(bot_response) > 200:
+                    bot_response = bot_response[:200] + "..."
+                context_parts.append(f"InfoBot: {bot_response}")
+        
+        # Agregar consulta actual
+        context_parts.append(f"Usuario: {current_query}")
+        
+        return "\n".join(context_parts)
 
     def _handle_tech_question(self, entities: Dict[str, Any], db: Session) -> tuple:
         """Manejar preguntas tecnológicas generales usando IA"""
@@ -331,7 +373,6 @@ Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detal
 • ¿Alguna marca de preferencia?
 
 ¡Así podré ayudarte mejor! 😊"""
-            
             return bot_response, []
 
     def _handle_product_request(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]], 
@@ -346,7 +387,7 @@ Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detal
             bot_response, products, cart_action = self._handle_comparison_request(entities, db)
         
         elif entities.get("accion") == "ver_especificaciones":
-            bot_response, products = self._handle_specifications_request(entities, db)
+            bot_response, products = self._handle_specifications_request(entities, db, conversation_history)
         
         elif entities.get("accion") == "agregar_carrito":
             bot_response, products, cart_action = self._handle_add_to_cart_request(
@@ -354,7 +395,7 @@ Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detal
             )
         
         elif entities.get("accion") == "recomendar_categoria":
-            bot_response, products = self._handle_intelligent_recommendation_request(entities, db)
+            bot_response, products = self._handle_intelligent_recommendation_request(entities, db, conversation_history)
         
         elif entities.get("accion") == "pregunta_tecnologica":
             bot_response, products = self._handle_tech_question(entities, db)
@@ -364,9 +405,16 @@ Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detal
             bot_response, products = self._handle_product_search(entities, conversation_history, db)
         
         return bot_response, products, cart_action
-
-    def _handle_specifications_request(self, entities: Dict[str, Any], db: Session) -> tuple:
-        """Manejar solicitud de especificaciones"""
+    
+    def _handle_specifications_request(self, entities: Dict[str, Any], db: Session, 
+                                      conversation_history: Optional[List[Dict[str, Any]]] = None) -> tuple:
+        """Manejar solicitud de especificaciones, incluyendo referencias contextuales"""
+        
+        # Si es una referencia contextual (la segunda, el primero, etc.)
+        if entities.get("referencia_contextual") and entities.get("numero_producto"):
+            return self._handle_contextual_spec_request(entities, conversation_history, db)
+        
+        # Si tiene un producto específico mencionado
         if entities.get("producto_especifico"):
             product = self.product_service.find_product_by_name(db, entities["producto_especifico"])
             if product:
@@ -378,6 +426,92 @@ Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detal
         else:
             bot_response = "¿Sobre qué producto específico te gustaría conocer las especificaciones? Puedes mencionar el modelo exacto."
             return bot_response, []
+    
+    def _handle_contextual_spec_request(self, entities: Dict[str, Any], 
+                                      conversation_history: Optional[List[Dict[str, Any]]], 
+                                      db: Session) -> tuple:
+        """Manejar solicitudes de especificaciones con referencias contextuales (la segunda, el primero, etc.)"""
+        numero_producto = entities.get("numero_producto", 1)
+        
+        if not conversation_history:
+            bot_response = f"""Lo siento, no puedo identificar cuál es "{'la ' + ['primera', 'segunda', 'tercera'][numero_producto-1] if numero_producto <= 3 else 'el producto'}" porque no hay conversación previa.
+
+¿Podrías mencionar el nombre específico del producto del que quieres ver las especificaciones? 😊"""
+            return bot_response, []
+        
+        # Buscar en el historial la última vez que se mostraron productos
+        recommended_products = self._extract_last_recommended_products(conversation_history)
+        
+        if not recommended_products or len(recommended_products) < numero_producto:
+            ordinal = ['primera', 'segunda', 'tercera'][numero_producto-1] if numero_producto <= 3 else f'producto #{numero_producto}'
+            bot_response = f"""No puedo encontrar la {ordinal} opción en nuestra conversación reciente.
+
+¿Podrías decirme el nombre específico del producto que te interesa? También puedo mostrarte nuestras mejores recomendaciones nuevamente. 😊"""
+            return bot_response, []
+        
+        # Obtener el producto específico
+        target_product_name = recommended_products[numero_producto - 1]
+        
+        # Buscar el producto en la base de datos por nombre
+        product = self.product_service.find_product_by_name(db, target_product_name)
+        
+        if product:
+            # Generar especificaciones usando el formatter
+            bot_response = self.response_formatter.generate_product_specifications(product)
+            return bot_response, [product]
+        else:
+            # Si no encontramos el producto exacto, ofrecer buscar de forma más flexible
+            ordinal = ['primera', 'segunda', 'tercera'][numero_producto-1] if numero_producto <= 3 else f'producto #{numero_producto}'
+            
+            bot_response = f"""📋 **Especificaciones de la {ordinal} opción: {target_product_name}**
+
+No pude encontrar este producto exacto en nuestra base de datos actual. Esto podría deberse a:
+
+💡 **Posibles causas:**
+• El producto podría estar agotado temporalmente
+• Cambio en el nombre del modelo
+• Actualización de inventario
+
+🔍 **¿Te gustaría que?**
+• Busque productos similares de la misma marca
+• Te muestre nuestras opciones actuales disponibles
+• Contactes directamente con nuestros especialistas
+
+¿Cómo prefieres continuar? 😊"""
+            
+            return bot_response, []
+
+    def _extract_last_recommended_products(self, conversation_history: List[Dict[str, Any]]) -> List[str]:
+        """Extraer la lista de productos recomendados de la conversación más reciente"""
+        product_names = []
+        
+        # Buscar hacia atrás en el historial la última respuesta que contenga productos
+        for entry in reversed(conversation_history):
+            # Primero intentar obtener de la nueva estructura
+            products_list = entry.get("products_list", [])
+            if products_list:
+                for product in products_list:
+                    product_names.append(product.get("name", ""))
+                break
+            
+            # Fallback: buscar en el texto de la respuesta
+            bot_response = entry.get("bot_response", "")
+            if bot_response:
+                import re
+                # Pattern para capturar nombres de productos en recomendaciones numeradas
+                pattern = r'\*\*\d+\.\s+([^*]+?)\*\*'
+                matches = re.findall(pattern, bot_response)
+                
+                if matches:
+                    # Limpiar los nombres de productos (remover precios y texto extra)
+                    for match in matches:
+                        # Tomar solo la parte del nombre antes del precio
+                        clean_name = match.split('(')[0].strip()
+                        if clean_name:
+                            product_names.append(clean_name)
+                    break
+        
+        return product_names
 
     def _handle_add_to_cart_request(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]], 
                                    db: Session, user_id: Optional[int], session_id: str) -> tuple:

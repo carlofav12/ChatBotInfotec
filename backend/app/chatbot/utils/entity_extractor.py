@@ -102,17 +102,45 @@ class EntityExtractor:
         """Detectar intención de agregar al carrito"""
         if any(pattern in message_lower for pattern in self.config.CART_PATTERNS):
             entities["accion"] = "agregar_carrito"
-              # Si usa referencias contextuales sin especificar producto
+            # Si usa referencias contextuales sin especificar producto
             if any(ref in message_lower for ref in self.config.CONTEXTUAL_REFS) and conversation_history:
                 last_product = self._get_last_discussed_product(conversation_history)
                 if last_product:
                     entities["producto_especifico"] = last_product
     
     def _extract_spec_action(self, message_lower: str, entities: Dict[str, Any]) -> None:
-        """Detectar solicitud de especificaciones"""
-        if any(pattern in message_lower for pattern in self.config.SPEC_PATTERNS):
-            entities["accion"] = "ver_especificaciones"
-    
+        """Detectar solicitudes de especificaciones, incluyendo referencias contextuales"""
+        
+        # Verificar patrones básicos de especificaciones
+        for pattern in self.config.SPEC_PATTERNS:
+            if pattern.lower() in message_lower:
+                entities["accion"] = "ver_especificaciones"
+                logger.info("Detectada solicitud de especificaciones básica")
+                break
+        
+        # Verificar patrones contextuales para especificaciones (la segunda, el primero, etc.)
+        if entities.get("accion") != "ver_especificaciones":
+            for pattern in self.config.CONTEXTUAL_SPEC_PATTERNS:
+                if re.search(pattern, message_lower):
+                    entities["accion"] = "ver_especificaciones"
+                    entities["referencia_contextual"] = True
+                    
+                    # Extraer qué número de producto se refiere (mejorado para números directos)
+                    if re.search(r"(?:la\s+)?segunda?|(?:\s|^)2(?:\s|$)", message_lower):
+                        entities["numero_producto"] = 2
+                    elif re.search(r"(?:la\s+)?primera?|(?:el\s+)?primero|(?:\s|^)1(?:\s|$)", message_lower):
+                        entities["numero_producto"] = 1
+                    elif re.search(r"(?:la\s+)?tercera?|(?:el\s+)?tercero|(?:\s|^)3(?:\s|$)", message_lower):
+                        entities["numero_producto"] = 3
+                    else:
+                        # Fallback: buscar cualquier número del 1-5
+                        number_match = re.search(r"(?:\s|^)([1-5])(?:\s|$)", message_lower)
+                        if number_match:
+                            entities["numero_producto"] = int(number_match.group(1))
+                    
+                    logger.info(f"Detectada solicitud de especificaciones contextual - Producto #{entities.get('numero_producto', 'N/A')}")
+                    break
+
     def _extract_recommend_action(self, message_lower: str, entities: Dict[str, Any]) -> None:
         """Detectar solicitudes de recomendación inteligente"""
         # Verificar si el mensaje coincide con patrones de recomendación
@@ -160,42 +188,45 @@ class EntityExtractor:
     
     def should_show_products(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]]) -> bool:
         """Determinar si debe buscar y mostrar productos"""
-        # Si hay acción específica de ver especificaciones
+        
+        # PRIORITY 1: Si es una pregunta tecnológica general, NO mostrar productos
+        if entities.get("accion") == "pregunta_tecnologica":
+            return False
+        
+        # PRIORITY 2: Si hay acción específica de ver especificaciones
         if entities.get("accion") == "ver_especificaciones":
             return True
         
-        # Si hay acción de agregar al carrito
+        # PRIORITY 3: Si hay acción de agregar al carrito
         if entities.get("accion") == "agregar_carrito":
             return True
         
-        # Si menciona un producto específico
-        if entities.get("producto_especifico"):
-            return True
-        
-        # Si menciona una categoría de producto
-        if entities.get("producto"):
-            return True
-        
-        # Si menciona una marca
-        if entities.get("marca"):
-            return True
-        
-        # Si menciona presupuesto
-        if entities.get("presupuesto"):
-            return True
-          # Si menciona caso de uso específico
-        if entities.get("uso"):
-            return True
-        
-        # Comparar productos
+        # PRIORITY 4: Si hay comparación específica de productos/marcas
         if entities.get("accion") == "comparar_productos" and (entities.get("productos_a_comparar") or entities.get("marcas_a_comparar")):
             return True
             
-        # Recomendar por categoría específica
+        # PRIORITY 5: Si es recomendación de categoría específica (no pregunta general)
         if entities.get("accion") == "recomendar_categoria":
             return True
-            
+        
+        # PRIORITY 6: Si menciona un producto específico
         if entities.get("producto_especifico"):
+            return True
+        
+        # PRIORITY 7: Si menciona una categoría de producto (pero no es pregunta tech)
+        if entities.get("producto"):
+            return True
+        
+        # PRIORITY 8: Si menciona una marca
+        if entities.get("marca"):
+            return True
+        
+        # PRIORITY 9: Si menciona presupuesto
+        if entities.get("presupuesto"):
+            return True
+            
+        # PRIORITY 10: Si menciona caso de uso específico
+        if entities.get("uso"):
             return True
             
         return False
@@ -290,33 +321,22 @@ class EntityExtractor:
                  # Podríamos querer buscar productos de estas marcas.
                  # Por ahora, el servicio de producto decidirá cómo manejar esto.
                  pass
-
-    def _extract_recommend_action(self, message_lower: str, entities: Dict[str, Any]) -> None:
-        """Detectar solicitudes de recomendación inteligente"""
-        # Verificar si el mensaje coincide con patrones de recomendación
-        for pattern in self.config.RECOMMENDATION_QUERY_PATTERNS:
-            if re.search(pattern, message_lower):
-                entities["accion"] = "recomendar_categoria"
-                
-                # Extraer la categoría mencionada en el patrón
-                category_match = re.search(r"(laptop|pc|computadora|equipo)s?", message_lower)
-                if category_match:
-                    category = category_match.group(1)
-                    if category in ["laptop", "computadora"]:
-                        entities["categoria"] = "laptop"
-                    elif category in ["pc", "equipo"]:
-                        entities["categoria"] = "pc"
-                    else:
-                        entities["categoria"] = category
-                
-                logger.info(f"Detectada solicitud de recomendación para categoría: {entities.get('categoria', 'general')}")
-                break
-
+    
     def _extract_tech_question(self, message_lower: str, entities: Dict[str, Any]) -> None:
         """Detectar preguntas tecnológicas generales (no sobre productos específicos)"""
-        
-        # Patrones para preguntas tecnológicas generales
+          # Patrones para preguntas tecnológicas generales
         tech_question_patterns = [
+            # Preguntas generales por categoría (que X es mejor)
+            r"(?:qu[eé]|cu[aá]l)\s+laptop\s+es\s+mejor",                                # "que laptop es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+pc\s+es\s+mejor",                                    # "que pc es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+monitor\s+es\s+mejor",                               # "que monitor es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+pantalla\s+es\s+mejor",                              # "que pantalla es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+teclado\s+es\s+mejor",                               # "que teclado es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+mouse\s+es\s+mejor",                                 # "que mouse es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+procesador\s+es\s+mejor",                            # "que procesador es mejor"
+            r"(?:qu[eé]|cu[aá]l)\s+tarjeta\s+(?:gráfica|de\s+video)\s+es\s+mejor",     # "que tarjeta grafica es mejor"
+            
+            # Comparaciones generales PC vs Laptop
             r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(?:una\s+)?laptop\s+o\s+(?:una\s+)?pc",  # "que es mejor una laptop o una pc"
             r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(?:una\s+)?pc\s+o\s+(?:una\s+)?laptop",  # "que es mejor una pc o una laptop"
             r"laptop\s+o\s+pc\s+(?:para|qu[eé])",                                        # "laptop o pc para gaming"
@@ -326,11 +346,78 @@ class EntityExtractor:
             r"ventajas?\s+(?:de\s+)?laptop\s+(?:vs?|o)\s+pc",                           # "ventajas de laptop vs pc"
             r"ventajas?\s+(?:de\s+)?pc\s+(?:vs?|o)\s+laptop",                           # "ventajas de pc vs laptop"
             r"(?:qu[eé]|cu[aá]l)\s+conviene\s+más\s+laptop\s+o\s+pc",                   # "que conviene más laptop o pc"
+              # Comparaciones de componentes y marcas
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+amd\s+o\s+intel",                      # "cual es mejor amd o intel"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+intel\s+o\s+amd",                      # "cual es mejor intel o amd"
+            r"diferencia\s+entre\s+amd\s+e?\s*intel",                                   # "diferencia entre amd e intel"
+            r"diferencia\s+entre\s+intel\s+y\s+amd",                                    # "diferencia entre intel y amd"
+            r"amd\s+vs?\s+intel",                                                       # "amd vs intel"
+            r"intel\s+vs?\s+amd",                                                       # "intel vs amd"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+nvidia\s+o\s+amd",                     # "cual es mejor nvidia o amd"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+amd\s+o\s+nvidia",                     # "cual es mejor amd o nvidia"
+            r"nvidia\s+vs?\s+amd",                                                      # "nvidia vs amd"
+            
+            # Comparaciones de marcas de fabricantes (preguntas generales)
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+asus\s+o\s+lenovo",                    # "que es mejor asus o lenovo"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+lenovo\s+o\s+asus",                    # "que es mejor lenovo o asus"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+hp\s+o\s+dell",                        # "que es mejor hp o dell"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+dell\s+o\s+hp",                        # "que es mejor dell o hp"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+asus\s+o\s+hp",                        # "que es mejor asus o hp"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+hp\s+o\s+asus",                        # "que es mejor hp o asus"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+lenovo\s+o\s+dell",                    # "que es mejor lenovo o dell"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+dell\s+o\s+lenovo",                    # "que es mejor dell o lenovo"
+            r"diferencia\s+entre\s+asus\s+y\s+lenovo",                                  # "diferencia entre asus y lenovo"
+            r"diferencia\s+entre\s+lenovo\s+y\s+asus",                                  # "diferencia entre lenovo y asus"
+            r"diferencia\s+entre\s+hp\s+y\s+dell",                                      # "diferencia entre hp y dell"
+            r"diferencia\s+entre\s+dell\s+y\s+hp",                                      # "diferencia entre dell y hp"
+            r"asus\s+vs?\s+lenovo",                                                     # "asus vs lenovo"
+            r"lenovo\s+vs?\s+asus",                                                     # "lenovo vs asus"
+            r"hp\s+vs?\s+dell",                                                         # "hp vs dell"
+            r"dell\s+vs?\s+hp",                                                         # "dell vs hp"
+            
+            # Preguntas sobre tipos de componentes
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+ssd\s+o\s+hdd",                        # "cual es mejor ssd o hdd"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+hdd\s+o\s+ssd",                        # "cual es mejor hdd o ssd"
+            r"diferencia\s+entre\s+ssd\s+y\s+hdd",                                      # "diferencia entre ssd y hdd"
+            r"ssd\s+vs?\s+hdd",                                                         # "ssd vs hdd"
+            
+            # Preguntas sobre sistemas operativos
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+windows\s+o\s+linux",                  # "cual es mejor windows o linux"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+linux\s+o\s+windows",                  # "cual es mejor linux o windows"
+            r"diferencia\s+entre\s+windows\s+y\s+linux",                               # "diferencia entre windows y linux"
         ]
         
         for pattern in tech_question_patterns:
             if re.search(pattern, message_lower):
-                entities["accion"] = "pregunta_tecnologica"
-                entities["tipo_pregunta"] = "laptop_vs_pc"
-                logger.info("Detectada pregunta tecnológica general: laptop vs pc")
+                entities["accion"] = "pregunta_tecnologica"                # Clasificar el tipo de pregunta para respuestas más específicas
+                if "laptop.*es.*mejor" in pattern and not ("pc" in pattern or "computadora" in pattern):
+                    entities["tipo_pregunta"] = "best_laptop"
+                elif "pc.*es.*mejor" in pattern:
+                    entities["tipo_pregunta"] = "best_pc"
+                elif "monitor.*es.*mejor" in pattern or "pantalla.*es.*mejor" in pattern:
+                    entities["tipo_pregunta"] = "best_monitor"
+                elif "teclado.*es.*mejor" in pattern:
+                    entities["tipo_pregunta"] = "best_keyboard"
+                elif "mouse.*es.*mejor" in pattern:
+                    entities["tipo_pregunta"] = "best_mouse"
+                elif "procesador.*es.*mejor" in pattern:
+                    entities["tipo_pregunta"] = "best_processor"
+                elif "tarjeta" in pattern and ("gráfica" in pattern or "video" in pattern):
+                    entities["tipo_pregunta"] = "best_gpu"
+                elif "laptop" in pattern and "pc" in pattern:
+                    entities["tipo_pregunta"] = "laptop_vs_pc"
+                elif "amd" in pattern and "intel" in pattern:
+                    entities["tipo_pregunta"] = "amd_vs_intel"
+                elif "nvidia" in pattern:
+                    entities["tipo_pregunta"] = "gpu_comparison"
+                elif "ssd" in pattern and "hdd" in pattern:
+                    entities["tipo_pregunta"] = "storage_comparison"
+                elif "windows" in pattern or "linux" in pattern:
+                    entities["tipo_pregunta"] = "os_comparison"
+                elif any(brand in pattern for brand in ["asus", "lenovo", "hp", "dell"]):
+                    entities["tipo_pregunta"] = "brand_comparison"
+                else:
+                    entities["tipo_pregunta"] = "general_tech"
+                
+                logger.info(f"Detectada pregunta tecnológica general: {entities['tipo_pregunta']}")
                 break
