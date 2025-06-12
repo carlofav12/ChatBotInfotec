@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from ..services.product_service import ProductService
 from ..services.ai_response_generator import AIResponseGenerator
 from ..services.enhanced_llm_service import EnhancedLLMService
+from ..services.intent_classifier import IntentClassifier
 from ..utils.entity_extractor import EntityExtractor
 from ..utils.response_formatter import ResponseFormatter
 from ..utils.conversation_manager import ConversationManager
@@ -25,13 +26,14 @@ class EnhancedInfotecChatbotV4:
         self.product_service = ProductService()
         self.ai_generator = AIResponseGenerator(api_key)
         self.llm_service = EnhancedLLMService(api_key)
+        self.intent_classifier = IntentClassifier(api_key)
         
         # Inicializar utilidades
         self.entity_extractor = EntityExtractor()
         self.response_formatter = ResponseFormatter()
         self.conversation_manager = ConversationManager()
         
-        logger.info("ChatbotV4 inicializado correctamente con LLM mejorado")
+        logger.info("ChatbotV4 inicializado correctamente con LLM mejorado y clasificador de intenciones")
     
     def process_message(self, message: str, db: Session, user_id: Optional[int] = None, 
                        session_id: str = "default") -> Dict[str, Any]:
@@ -47,30 +49,48 @@ class EnhancedInfotecChatbotV4:
                     "conversation_id": session_id,
                     "cart_action": None
                 }
-            
-            # Obtener historial de conversación
+              # Obtener historial de conversación
             conversation_history = self.conversation_manager.get_conversation_history(session_id)
             
-            # Extraer entidades del mensaje con contexto
+            # Usar IA para clasificar la intención del mensaje
+            intent_result = self.intent_classifier.classify_intent(message, conversation_history)
+            intent = intent_result["intent"]
+            should_search = intent_result["should_show_products"]
+            
+            # Extraer entidades adicionales si es necesario (mantenemos para compatibilidad)
             entities = self.entity_extractor.extract_entities(message, conversation_history)
             
-            # Determinar si debe mostrar productos
-            should_search = self.entity_extractor.should_show_products(entities, conversation_history)
+            # Agregar información del clasificador de intenciones
+            entities["_intent_confidence"] = intent_result["confidence"]
+            entities["_intent_reasoning"] = intent_result["reasoning"]
+            entities["_ai_entities"] = intent_result["entities"]
             
-            intent = "buscar_producto" if should_search else "conversacion_general"
+            # Mapear intent a acción para compatibilidad con el sistema existente
+            if intent == "pregunta_tecnologica":
+                entities["accion"] = "pregunta_tecnologica"
+            elif intent == "buscar_producto":
+                entities["accion"] = "buscar_productos"
+            elif intent == "comparar_productos":
+                entities["accion"] = "comparar_productos"
+            elif intent == "ver_especificaciones":
+                entities["accion"] = "ver_especificaciones"
+            elif intent == "agregar_carrito":
+                entities["accion"] = "agregar_carrito"
+                
             products = []
             bot_response = ""
             cart_action = None
             
-            if should_search:
-                # Procesar solicitudes relacionadas con productos
+            if should_search or entities.get("accion") == "pregunta_tecnologica":
+                # Procesar solicitudes relacionadas con productos o preguntas tecnológicas
                 bot_response, products, cart_action = self._handle_product_request(
                     entities, conversation_history, db, user_id, session_id
                 )
             else:
                 # Generar respuesta general
                 bot_response = self._handle_general_conversation(message, conversation_history)
-              # Guardar conversación
+                
+            # Guardar conversación
             products_list = [p.dict() if hasattr(p, 'dict') else p for p in products] if products else []
             self.conversation_manager.save_conversation(
                 session_id, message, bot_response, intent, entities, len(products) > 0, products_list
@@ -326,7 +346,8 @@ class EnhancedInfotecChatbotV4:
         original_question = entities.get("_original_message", "pregunta tecnológica")
         question_type = entities.get("tipo_pregunta", "general")
         
-        try:            # Usar el LLM para responder preguntas tecnológicas generales
+        try:
+            # Usar el LLM para responder preguntas tecnológicas generales
             bot_response = self.llm_service.answer_tech_question(
                 question=original_question,
                 context=f"Tipo de pregunta: {question_type}"
