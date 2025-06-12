@@ -1,11 +1,11 @@
-﻿# filepath: backend/app/chatbot/utils/conversation_manager.py
-"""
+﻿"""
 Manejador de conversaciones y contexto
 Maneja el historial de conversaciones y el contexto entre mensajes
 """
 import logging
+import re
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class ConversationManager:
     
     def save_conversation(self, session_id: str, user_message: str, bot_response: str, 
                          intent: str, entities: Dict[str, Any], products_shown: bool = False,
-                         products_list: List[Dict] = None) -> None:
+                         products_list: Optional[List[Dict]] = None) -> None:
         """Guardar conversación en el historial"""
         if session_id not in self.session_conversations:
             self.session_conversations[session_id] = []
@@ -34,7 +34,7 @@ class ConversationManager:
             "intent": intent,
             "entities": entities,
             "products_shown": products_shown,
-            "products_list": products_list or []
+            "products_list": products_list if products_list is not None else []
         }
         
         self.session_conversations[session_id].append(conversation_entry)
@@ -44,15 +44,68 @@ class ConversationManager:
             self.session_conversations[session_id] = self.session_conversations[session_id][-10:]
     
     def get_context_string(self, conversation_history: List[Dict[str, Any]]) -> str:
-        """Generar string de contexto para la IA"""
+        """Generar string de contexto para la IA con información detallada"""
         if not conversation_history:
-            return ""
+            return "Sin conversación previa."
         
-        recent_context = conversation_history[-2:]  # Últimas 2 conversaciones
-        context_str = "Conversación previa: " + " | ".join([
-            f"Usuario: {conv['user_message'][:50]} -> Bot: {conv['bot_response'][:50]}" 
-            for conv in recent_context
-        ])
+        # Tomar las últimas 3-4 conversaciones para mejor contexto
+        recent_context = conversation_history[-4:] if len(conversation_history) > 4 else conversation_history
+        
+        context_parts = []
+        product_info = []
+        
+        for i, conv in enumerate(recent_context, 1):
+            user_msg = conv.get('user_message', '')
+            bot_msg = conv.get('bot_response', '')
+            intent = conv.get('intent', '')
+            products_shown = conv.get('products_shown', False)
+            products_list = conv.get('products_list', [])
+            
+            # Resumir el intercambio
+            user_summary = user_msg[:100] + "..." if len(user_msg) > 100 else user_msg
+            
+            # Información específica sobre el intent
+            intent_info = ""
+            if intent == "buscar_producto":
+                intent_info = " (búsqueda de productos)"
+            elif intent == "recomendar_producto":
+                intent_info = " (solicitud de recomendación)"
+            elif intent == "ver_especificaciones":
+                intent_info = " (ver especificaciones)"
+            elif intent == "agregar_carrito":
+                intent_info = " (agregar al carrito)"
+            
+            context_parts.append(f"{i}. Usuario: {user_summary}{intent_info}")
+            
+            # Si se mostraron productos, incluir información específica
+            if products_shown and products_list:
+                product_names = []
+                for product in products_list[:5]:  # Máximo 5 productos para no saturar
+                    if isinstance(product, dict):
+                        name = product.get('name', '')
+                        if name:
+                            product_names.append(name)
+                
+                if product_names:
+                    product_info.append(f"   Productos mostrados: {', '.join(product_names)}")
+            elif products_shown:
+                # Si se mostraron productos pero no tenemos la lista, extraer del texto de respuesta
+                # Buscar patrones de productos en la respuesta
+                product_matches = re.findall(r'\*\*\d+\.\s+([^*\n]+?)\*\*', bot_msg)
+                if product_matches:
+                    product_info.append(f"   Productos mostrados: {', '.join(product_matches[:3])}...")
+        
+        # Construir el contexto final
+        context_str = "CONVERSACIÓN RECIENTE:\n" + "\n".join(context_parts)
+        
+        if product_info:
+            context_str += "\n\nPRODUCTOS MENCIONADOS:\n" + "\n".join(product_info)
+        
+        # Agregar información sobre el patrón de comportamiento del usuario
+        if len(recent_context) > 1:
+            last_intent = recent_context[-1].get('intent', '')
+            if last_intent == 'buscar_producto' and any(conv.get('products_shown') for conv in recent_context):
+                context_str += "\n\nCONTEXTO: El usuario ha visto productos y ahora puede estar pidiendo una recomendación específica."
         
         return context_str
     
