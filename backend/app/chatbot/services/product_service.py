@@ -492,3 +492,52 @@ class ProductService:
         except Exception as e:
             logger.error(f"Error buscando productos similares a '{product_name}': {e}")
             return []
+
+    def get_best_products_for_recommendation(self, db: Session, category: Optional[str] = None, 
+                                           use_case: Optional[str] = None, max_price: Optional[int] = None,
+                                           limit: int = 50) -> List[ProductModel]:
+        """Obtener los mejores productos para recomendación basados en rating, precio y disponibilidad"""
+        try:
+            from app.crud import get_products, search_products as crud_search_products
+            
+            logger.info(f"Obteniendo mejores productos - categoría: {category}, uso: {use_case}, precio_max: {max_price}")
+            
+            # Si hay una categoría específica, buscar por ella
+            if category:
+                db_products = crud_search_products(db, category, limit=limit * 2)  # Obtener más para filtrar mejor
+            else:
+                # Obtener todos los productos activos
+                db_products = get_products(db, skip=0, limit=limit * 2)
+            
+            # Convertir a modelos Pydantic, filtrar y ordenar
+            products = []
+            for db_product in db_products:
+                try:
+                    product_model = ProductModel.from_orm(db_product)
+                    
+                    # Filtrar por stock
+                    if product_model.stock_quantity <= 0:
+                        continue
+                        
+                    # Filtrar por precio máximo si se especifica
+                    if max_price and product_model.price > max_price:
+                        continue
+                    
+                    products.append(product_model)
+                        
+                except Exception as e:
+                    logger.warning(f"Error convirtiendo producto: {e}")
+                    continue
+            
+            # Ordenar por rating (descendente) y luego por precio (ascendente) para mejores primero
+            products.sort(key=lambda x: (-(x.rating or 0), x.price or 0))
+            
+            # Limitar al número solicitado
+            products = products[:limit]
+            
+            logger.info(f"Encontrados {len(products)} mejores productos para recomendación")
+            return products
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo mejores productos para recomendación: {e}")
+            return []

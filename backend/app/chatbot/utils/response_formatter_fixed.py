@@ -1,4 +1,4 @@
-# filepath: backend/app/chatbot/utils/response_formatter_temp.py
+# filepath: backend/app/chatbot/utils/response_formatter_fixed.py
 """
 Formateador de respuestas del chatbot
 Maneja la generación de respuestas formateadas para productos y especificaciones
@@ -30,26 +30,11 @@ class ResponseFormatter:
     def generate_product_response(self, products: List[ProductModel], use_case: Optional[str] = None) -> str:
         """Generar respuesta con productos"""
         if not products:
-            return "No encontré productos que coincidan con tu búsqueda. ¿Podrías darme más detalles sobre lo que buscas? 😊"
+            return "❌ No se encontraron productos que coincidan con tu búsqueda. ¿Podrías ser más específico? 🤔"
         
-        # Mensaje personalizado según el caso de uso
-        intro_messages = {
-            "gaming": "🎮 ¡Perfecto para gaming! Aquí tienes las mejores opciones:",
-            "universidad": "🎓 Ideales para tus estudios:",
-            "trabajo": "💼 Excelentes para uso profesional:",
-            "programacion": "👨‍💻 Perfectas para programación:",
-            "basico": "💻 Ideales para uso básico:",
-        }
+        response = f"🛍️ Encontré {len(products)} producto(s) para ti:\n\n"
         
-        if use_case and use_case in intro_messages:
-            intro = intro_messages[use_case]
-        else:
-            intro = f"Encontré {len(products)} opciones que podrían interesarte:"
-        
-        response = f"{intro}\n\n"
-        
-        # Mostrar hasta 3 productos principales
-        for i, product in enumerate(products[:3]):
+        for i, product in enumerate(products[:10]):  # Limitar a 10 productos
             try:
                 # Calcular descuento si existe
                 discount_info = ""
@@ -68,107 +53,103 @@ class ResponseFormatter:
                 logger.warning(f"Error formateando producto {product.id}: {e}")
                 continue
         
-        # Mensaje de seguimiento
-        if len(products) > 3:
-            response += f"💡 *Y {len(products) - 3} opciones más disponibles*\n\n"
-        
-        response += "¿Te interesa alguna opción específica? ¡Puedo darte más detalles o agregarlo al carrito! 😊"
-        
+        response += "💡 ¿Te interesa alguno en particular? ¡Puedo darte más detalles o agregarlo al carrito! 😊"
         return response
-        
-    def generate_product_specifications(self, product: ProductModel, include_header: bool = True) -> str:
-        """Generar especificaciones detalladas de un producto"""
-        spec_response = ""
-        
-        # Agregar encabezado si es necesario
-        if include_header:
-            spec_response = f"📋 **Especificaciones Técnicas - {product.name}**\n\n"
-        
-        # Precio y disponibilidad
-        spec_response += f"💰 **Precio:** S/ {product.price:.2f}\n"
-        if hasattr(product, 'original_price') and product.original_price and product.original_price > product.price:
-            discount = round((1 - product.price / product.original_price) * 100)
-            spec_response += f"🏷️ **Precio anterior:** S/ {product.original_price:.2f} ({discount}% de descuento)\n"
-        
-        spec_response += f"📦 **Stock:** {product.stock_quantity} unidades disponibles\n"
-        spec_response += f"⭐ **Calificación:** {getattr(product, 'rating', 'N/A')}/5\n\n"
-        
-        # Marca y modelo
-        spec_response += f"🏢 **Marca:** {product.brand}\n"
-        
-        # Extracción de especificaciones del producto
-        if hasattr(product, 'specifications') and product.specifications:        # Si el producto tiene especificaciones como atributo
-            if isinstance(product.specifications, dict):
-                for key, value in product.specifications.items():
-                    if key and value and key.lower() not in ["id", "product_id"]:
-                        spec_response += f"**{key.replace('_', ' ').capitalize()}:** {value}\n"
-            elif isinstance(product.specifications, str):
-                spec_response += f"**Especificaciones:** {product.specifications}\n"
-        else:
-            # Extracción basada en el nombre del producto
-            name_lower = product.name.lower()
+    
+    def generate_specification_response(self, product: ProductModel) -> str:
+        """Generar respuesta con especificaciones del producto"""
+        try:
+            if not product:
+                return "❌ No se encontró información del producto especificado."
             
-            # Procesador
-            processor_info = self._extract_processor_info(name_lower)
-            if processor_info:
-                spec_response += f"⚡ **Procesador:** {processor_info}\n"
+            spec_response = f"📋 **Especificaciones de {product.name}**\n\n"
             
-            # Memoria RAM
-            ram_info = self._extract_ram_info(name_lower)
-            if ram_info:
-                spec_response += f"🧠 **Memoria RAM:** {ram_info}\n"
+            # Precio
+            spec_response += f"💰 **Precio:** S/ {product.price:.2f}\n"
             
-            # Almacenamiento
-            storage_info = self._extract_storage_info(name_lower)
-            if storage_info:
-                spec_response += f"💾 **Almacenamiento:** {storage_info}\n"
+            # Marca y modelo
+            spec_response += f"🏢 **Marca:** {product.brand}\n"
             
-            # Pantalla
-            display_info = self._extract_display_info(name_lower)
-            if display_info:
-                spec_response += f"🖥️ **Pantalla:** {display_info}\n"
+            # Extracción de especificaciones del producto
+            if hasattr(product, 'specifications') and product.specifications:
+                # Si el producto tiene especificaciones como atributo
+                if isinstance(product.specifications, dict):
+                    for key, value in product.specifications.items():
+                        if key and value and key.lower() not in ["id", "product_id"]:
+                            spec_response += f"**{key.replace('_', ' ').capitalize()}:** {value}\n"
+                elif isinstance(product.specifications, str):
+                    spec_response += f"**Especificaciones:** {product.specifications}\n"
+            else:
+                # Extracción basada en el nombre del producto
+                name_lower = product.name.lower()
+                
+                # Procesador
+                processor_info = self._extract_processor_info(name_lower)
+                if processor_info:
+                    spec_response += f"⚡ **Procesador:** {processor_info}\n"
+                
+                # Memoria RAM
+                ram_info = self._extract_ram_info(name_lower)
+                if ram_info:
+                    spec_response += f"🧠 **Memoria RAM:** {ram_info}\n"
+                
+                # Almacenamiento
+                storage_info = self._extract_storage_info(name_lower)
+                if storage_info:
+                    spec_response += f"💾 **Almacenamiento:** {storage_info}\n"
+                
+                # Pantalla
+                display_info = self._extract_display_info(name_lower)
+                if display_info:
+                    spec_response += f"🖥️ **Pantalla:** {display_info}\n"
+                
+                # Sistema operativo
+                os_info = self._extract_os_info(name_lower)
+                if os_info:
+                    spec_response += f"🖥️ **Sistema Operativo:** {os_info}\n"
+                
+                # GPU
+                gpu_info = self._extract_gpu_info(name_lower)
+                if gpu_info:
+                    spec_response += f"🎮 **Tarjeta Gráfica:** {gpu_info}\n"
+                
+                # Características especiales
+                features = self._extract_special_features(name_lower)
+                if features:
+                    spec_response += f"✨ **Características:** {features}\n"
             
-            # Sistema operativo
-            os_info = self._extract_os_info(name_lower)
-            if os_info:
-                spec_response += f"🌐 **Sistema operativo:** {os_info}\n"
+            spec_response += f"\n📦 **Stock:** {product.stock_quantity} unidades\n"
+            spec_response += f"⭐ **Rating:** {product.rating}/5\n\n"
+            spec_response += "💡 ¿Te interesa este producto? ¡Puedo agregarlo al carrito! 🛒"
             
-            # Tarjeta gráfica
-            gpu_info = self._extract_gpu_info(name_lower)
-            if gpu_info:
-                spec_response += f"🎮 **Tarjeta gráfica:** {gpu_info}\n"
+            return spec_response
             
-            # Características especiales
-            special_features = self._extract_special_features(name_lower)
-            if special_features:
-                spec_response += f"✨ **Características especiales:** {special_features}\n"
-        
-        spec_response += f"\n💡 **¿Te interesa este modelo? ¡Puedo agregarlo a tu carrito!**"
-        
-        return spec_response
+        except Exception as e:
+            logger.error(f"Error generando especificaciones: {e}")
+            return f"❌ Error al obtener las especificaciones de {product.name if product else 'el producto'}."
     
     def _extract_processor_info(self, name_lower: str) -> str:
         """Extraer información del procesador del nombre del producto"""
         processor_patterns = {
-            "ryzen 5": "AMD Ryzen 5",
-            "ryzen 7": "AMD Ryzen 7",
-            "ryzen 9": "AMD Ryzen 9",
-            "i3": "Intel Core i3",
-            "i5": "Intel Core i5",
-            "i7": "Intel Core i7",
-            "i9": "Intel Core i9",
-            "core ultra 5": "Intel Core Ultra 5",
-            "core ultra 7": "Intel Core Ultra 7",
-            "n4500": "Intel Celeron N4500"
+            "intel i9": "Intel Core i9",
+            "intel i7": "Intel Core i7", 
+            "intel i5": "Intel Core i5",
+            "intel i3": "Intel Core i3",
+            "amd ryzen 9": "AMD Ryzen 9",
+            "amd ryzen 7": "AMD Ryzen 7",
+            "amd ryzen 5": "AMD Ryzen 5",
+            "amd ryzen 3": "AMD Ryzen 3",
+            "intel celeron": "Intel Celeron",
+            "intel pentium": "Intel Pentium"
         }
         
         for pattern, value in processor_patterns.items():
             if pattern in name_lower:
-                # Buscar el modelo específico
+                # Tratar de extraer generación
                 import re
-                model_match = re.search(r'(\d{4,5}[a-z]*)', name_lower)
-                if model_match and pattern in ["i3", "i5", "i7", "i9", "ryzen 5", "ryzen 7", "ryzen 9"]:
-                    return f"{value} {model_match.group(1)}"
+                gen_match = re.search(r'(\d+)(?:th|st|nd|rd)?\s*gen', name_lower)
+                if gen_match:
+                    return f"{value} {gen_match.group(1)}ª Gen"
                 return value
         
         return ""
@@ -206,67 +187,26 @@ class ResponseFormatter:
             if pattern in name_lower:
                 return value
         
-        # Búsqueda más flexible
-        import re
-        storage_match = re.search(r'(\d+(?:\.\d+)?(?:gb|tb))\s*ssd', name_lower)
-        if storage_match:
-            return f"{storage_match.group(1).upper()} SSD"
-        
         return ""
     
     def _extract_display_info(self, name_lower: str) -> str:
         """Extraer información de pantalla del nombre del producto"""
-        display_info = ""
+        display_patterns = {
+            "15.6": "15.6 pulgadas",
+            "17.3": "17.3 pulgadas",
+            "14": "14 pulgadas",
+            "13.3": "13.3 pulgadas",
+            "1920x1080": "Full HD (1920x1080)",
+            "full hd": "Full HD (1920x1080)",
+            "4k": "4K UHD",
+            "uhd": "4K UHD"
+        }
         
-        # Tamaño de pantalla
-        import re
-        size_match = re.search(r'(\d{2}(?:\.\d)?)"', name_lower)
-        if size_match:
-            display_info = f"{size_match.group(1)} pulgadas"
-        elif "15.6" in name_lower:
-            display_info = "15.6 pulgadas"
-        elif "14" in name_lower and "pulgadas" not in name_lower:
-            display_info = "14 pulgadas"
-        elif "16" in name_lower and "pulgadas" not in name_lower:
-            display_info = "16 pulgadas"
-        elif "13" in name_lower and "pulgadas" not in name_lower:
-            display_info = "13 pulgadas"
+        for pattern, value in display_patterns.items():
+            if pattern in name_lower:
+                return value
         
-        # Resolución
-        if "fhd" in name_lower or "full hd" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "Full HD (1920x1080)"
-        elif "uhd" in name_lower or "4k" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "Ultra HD 4K"
-        elif "qhd" in name_lower or "2k" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "QHD (2560x1440)"
-        
-        # Características adicionales
-        if "táctil" in name_lower or "touch" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "táctil"
-        
-        if "ips" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "IPS"
-        
-        if "144hz" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "144Hz"
-        elif "120hz" in name_lower:
-            if display_info:
-                display_info += ", "
-            display_info += "120Hz"
-        
-        return display_info
+        return ""
     
     def _extract_os_info(self, name_lower: str) -> str:
         """Extraer información del sistema operativo del nombre del producto"""
@@ -274,12 +214,8 @@ class ResponseFormatter:
             return "Windows 11"
         elif "windows 10" in name_lower:
             return "Windows 10"
-        elif "windows" in name_lower:
-            return "Windows"
-        elif "macos" in name_lower or "mac os" in name_lower:
-            return "macOS"
-        elif "linux" in name_lower:
-            return "Linux"
+        elif "ubuntu" in name_lower or "linux" in name_lower:
+            return "Linux/Ubuntu"
         elif "sin sistema operativo" in name_lower or "free dos" in name_lower:
             return "Sin sistema operativo"
         return ""
@@ -322,26 +258,27 @@ class ResponseFormatter:
         """Extraer características especiales del nombre del producto"""
         features = []
         
-        # Gaming features
-        if "gaming" in name_lower or "gamer" in name_lower:
-            features.append("Optimizado para gaming")
+        # Pantalla táctil
+        if "táctil" in name_lower or "touch" in name_lower:
+            features.append("Pantalla táctil")
         
-        # Business features
-        if "business" in name_lower or "profesional" in name_lower:
-            features.append("Diseño profesional")
-        
-        # Convertible/2-in-1
-        if "2 en 1" in name_lower or "2-en-1" in name_lower or "convertible" in name_lower or "2-in-1" in name_lower:
-            features.append("Convertible 2-en-1")
-        
-        # Teclado retroiluminado
+        # Retroiluminación
         if "retroiluminado" in name_lower or "backlit" in name_lower:
             features.append("Teclado retroiluminado")
+        
+        # Convertible
+        if "convertible" in name_lower or "2 en 1" in name_lower:
+            features.append("Convertible 2 en 1")
+        
+        # Gaming
+        if "gaming" in name_lower or "gamer" in name_lower:
+            features.append("Orientado a gaming")
         
         # Huella digital
         if "huella" in name_lower or "fingerprint" in name_lower:
             features.append("Lector de huella digital")
-          # Peso ligero
+        
+        # Peso ligero
         if "ultraligero" in name_lower or "ultra ligero" in name_lower or "lightweight" in name_lower:
             features.append("Diseño ultraligero")
         
@@ -364,13 +301,13 @@ class ResponseFormatter:
             
             response = f"""✅ **¡Producto agregado al carrito!**
 
-            🛒 **Detalle:**
-            • **{product_name}**
-            • Cantidad: {quantity}
-            • Precio unitario: S/ {price:.2f}
-            • Subtotal: S/ {subtotal:.2f}
-
-            """
+🛒 **Detalle:**
+• **{product_name}**
+• Cantidad: {quantity}
+• Precio unitario: S/ {price:.2f}
+• Subtotal: S/ {subtotal:.2f}
+"""
+            
             # Agregar total del carrito si está disponible
             if result.get("cart_total"):
                 response += f"💰 **Total del carrito:** S/ {result.get('cart_total'):.2f}\n\n"
@@ -391,6 +328,7 @@ class ResponseFormatter:
             
             if hasattr(product, 'brand') and product.brand:
                 response += f"🏷️ **Marca:** {product.brand}\n"
+            
             if hasattr(product, 'rating') and product.rating:
                 response += f"⭐ **Rating:** {product.rating}/5\n"
             
@@ -439,8 +377,8 @@ class ResponseFormatter:
                 response += f"• 💰 Precio: S/ {product['precio']}\n"
             
             # Mostrar otros atributos
-            for attr in ["marca", "rating"] + attributes:
-                if attr in product and product[attr] != "N/A" and attr != "precio":
+            for attr in attributes:
+                if attr in product and attr != 'precio':
                     value = product[attr]
                     if attr == "marca":
                         response += f"• 🏷️ Marca: {value}\n"

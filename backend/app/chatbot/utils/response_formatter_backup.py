@@ -341,14 +341,14 @@ class ResponseFormatter:
         # Huella digital
         if "huella" in name_lower or "fingerprint" in name_lower:
             features.append("Lector de huella digital")
-          # Peso ligero
+        
+        # Peso ligero
         if "ultraligero" in name_lower or "ultra ligero" in name_lower or "lightweight" in name_lower:
             features.append("Diseño ultraligero")
         
         if features:
             return ", ".join(features)
-        
-        return ""
+          return ""
     
     def format_cart_response(self, result: Dict[str, Any]) -> str:
         """Formatear respuesta para agregar al carrito"""
@@ -364,13 +364,13 @@ class ResponseFormatter:
             
             response = f"""✅ **¡Producto agregado al carrito!**
 
-            🛒 **Detalle:**
-            • **{product_name}**
-            • Cantidad: {quantity}
-            • Precio unitario: S/ {price:.2f}
-            • Subtotal: S/ {subtotal:.2f}
+🛒 **Detalle:**
+• **{product_name}**
+• Cantidad: {quantity}
+• Precio unitario: S/ {price:.2f}
+• Subtotal: S/ {subtotal:.2f}
 
-            """
+"""
             # Agregar total del carrito si está disponible
             if result.get("cart_total"):
                 response += f"💰 **Total del carrito:** S/ {result.get('cart_total'):.2f}\n\n"
@@ -391,10 +391,10 @@ class ResponseFormatter:
             
             if hasattr(product, 'brand') and product.brand:
                 response += f"🏷️ **Marca:** {product.brand}\n"
+            
             if hasattr(product, 'rating') and product.rating:
                 response += f"⭐ **Rating:** {product.rating}/5\n"
-            
-            response += f"📦 **Stock:** {product.stock_quantity} unidades\n\n"
+              response += f"📦 **Stock:** {product.stock_quantity} unidades\n\n"
             
             # Especificaciones técnicas
             if hasattr(product, 'specifications') and product.specifications:

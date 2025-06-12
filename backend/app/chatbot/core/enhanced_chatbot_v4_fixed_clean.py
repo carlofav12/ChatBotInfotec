@@ -64,12 +64,13 @@ class EnhancedInfotecChatbotV4:
             entities["_intent_reasoning"] = intent_result["reasoning"]
             entities["_ai_entities"] = intent_result["entities"]
             entities["_original_message"] = message  # Guardar mensaje original
-            
-            # Mapear intent a acción para compatibilidad con el sistema existente
+              # Mapear intent a acción para compatibilidad con el sistema existente
             if intent == "pregunta_tecnologica":
                 entities["accion"] = "pregunta_tecnologica"
             elif intent == "buscar_producto":
                 entities["accion"] = "buscar_productos"
+            elif intent == "recomendar_producto":
+                entities["accion"] = "recomendar_categoria"
             elif intent == "comparar_productos":
                 entities["accion"] = "comparar_productos"
             elif intent == "ver_especificaciones":
@@ -205,14 +206,23 @@ class EnhancedInfotecChatbotV4:
             product = self.product_service.find_product_by_name(db, name)
             if product:
                 products.append(product)
-        
-        # Si se encuentra al menos un producto, seguir con el proceso
+          # Si se encuentra al menos un producto, seguir con el proceso
         if len(products) >= 2:
-            # Comparar los dos primeros productos encontrados
-            bot_response = self.response_formatter.format_product_comparison(
-                products[0], products[1], attributes
+            # Obtener datos de comparación usando el servicio de productos
+            product_names_for_comparison = [products[0].name, products[1].name]
+            comparison_data = self.product_service.get_comparison_data(
+                db, product_names_for_comparison, [], attributes
             )
-            return bot_response, products, None
+            
+            if comparison_data:
+                bot_response = self.response_formatter.format_product_comparison(
+                    comparison_data, attributes
+                )
+                return bot_response, products, None
+            else:
+                # Fallback si no se puede obtener datos de comparación
+                bot_response = f"Encontré los productos **{products[0].name}** y **{products[1].name}**, pero no pude obtener datos completos para comparar."
+                return bot_response, products, None
         elif len(products) == 1 and brand_names and len(brand_names) >= 1:
             # Si tenemos un producto y una marca, usar LLM para comparación
             bot_response = self.llm_service.generate_comparison_response(
@@ -295,10 +305,13 @@ class EnhancedInfotecChatbotV4:
         # Solicitud de comparación de productos
         elif action == "comparar_productos":
             return self._handle_comparison_request(entities, db)
-        
-        # Solicitud de agregar al carrito
+          # Solicitud de agregar al carrito
         elif action == "agregar_carrito":
             return self._handle_add_to_cart_request(entities, conversation_history, db, user_id, session_id)
+        
+        # Solicitud de recomendación de categoría
+        elif action == "recomendar_categoria":
+            return self._handle_recommendation_request(entities, conversation_history, db)
             
         # Por defecto, búsqueda de productos
         else:
@@ -374,10 +387,9 @@ class EnhancedInfotecChatbotV4:
         else:
             # Si no se encuentra el producto exacto, intentar buscar alternativas
             logger.warning(f"No se encontró el producto '{target_product_name}' en la base de datos")
-            
-            # Intento de búsqueda más flexible con términos clave del nombre
+              # Intento de búsqueda más flexible con términos clave del nombre
             search_terms = ' '.join([term for term in target_product_name.split() if len(term) > 3])
-            alternative_products = self.product_service.search_products(db, search_terms, limit=3)
+            alternative_products = self.product_service.search_products(db, search_terms)
             
             if alternative_products:
                 bot_response = f"""No encontré exactamente el producto "**{target_product_name}**" en nuestro inventario, pero te muestro algunas alternativas similares:
@@ -556,6 +568,136 @@ class EnhancedInfotecChatbotV4:
                 bot_response += "• ¿Cuál es tu presupuesto aproximado?\n\n"
                 bot_response += "¡Estoy aquí para encontrar la mejor opción para ti! 😊"
                 return bot_response, [], None
+
+    def _handle_recommendation_request(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]],
+                                     db: Session) -> tuple:
+        """Manejar solicitudes de recomendación inteligente"""
+        logger.info("Procesando solicitud de recomendación inteligente")
+        
+        # Extraer información relevante
+        categoria = entities.get("categoria")
+        uso = entities.get("uso")
+        presupuesto = entities.get("presupuesto")
+        user_query = entities.get("_original_message", "")
+        
+        logger.info(f"Recomendación - Categoría: {categoria}, Uso: {uso}, Presupuesto: {presupuesto}")
+        
+        # Obtener productos para análisis (más productos para mejor recomendación)
+        all_products = self.product_service.get_best_products_for_recommendation(
+            db, category=categoria, use_case=uso, max_price=presupuesto, limit=50
+        )
+        
+        if not all_products:
+            return self._handle_no_products_for_recommendation(categoria, uso, presupuesto)
+        
+        # Convertir productos a formato dict para el LLM
+        products_dict = []
+        for product in all_products:
+            product_dict = product.dict() if hasattr(product, 'dict') else {
+                "id": getattr(product, 'id', None),
+                "name": getattr(product, 'name', 'Producto'),
+                "price": getattr(product, 'price', 0),
+                "brand": getattr(product, 'brand', ''),
+                "rating": getattr(product, 'rating', 0),
+                "stock_quantity": getattr(product, 'stock_quantity', 0),
+                "description": getattr(product, 'description', ''),
+                "specifications": getattr(product, 'specifications', {})
+            }
+            products_dict.append(product_dict)
+        
+        # Generar contexto conversacional
+        context_str = self.conversation_manager.get_context_string(conversation_history)
+        
+        # Usar IA para generar recomendaciones inteligentes (TOP 3)
+        try:
+            bot_response, recommended_product_names = self.llm_service.recommend_top_products_with_context(
+                products_dict,
+                user_query,
+                context_str,
+                category=categoria,
+                use_case=uso,
+                count=3
+            )
+            
+            # Filtrar productos recomendados de la lista original
+            recommended_products = []
+            for product in all_products[:10]:  # Limitar a los primeros 10 para mostrar
+                product_name = getattr(product, 'name', '')
+                # Verificar si el producto está en las recomendaciones del LLM
+                if any(rec_name.lower() in product_name.lower() or product_name.lower() in rec_name.lower() 
+                       for rec_name in recommended_product_names):
+                    recommended_products.append(product)
+                    if len(recommended_products) >= 3:
+                        break
+            
+            # Si no se encontraron productos específicos recomendados, usar los mejores disponibles
+            if not recommended_products:
+                recommended_products = all_products[:3]
+            
+            logger.info(f"Recomendaciones generadas: {len(recommended_products)} productos")
+            return bot_response, recommended_products, None
+            
+        except Exception as e:
+            logger.error(f"Error generando recomendaciones con IA: {e}")
+            # Fallback: usar los mejores productos ordenados por rating/precio
+            return self._handle_fallback_recommendation(all_products[:3], user_query, categoria, uso)
+
+    def _handle_no_products_for_recommendation(self, categoria: Optional[str], uso: Optional[str], 
+                                             presupuesto: Optional[int]) -> tuple:
+        """Manejar caso cuando no hay productos para recomendar"""
+        bot_response = "😔 **Lo siento, no encontré productos disponibles"
+        
+        if categoria:
+            bot_response += f" en la categoría {categoria}"
+        if uso:
+            bot_response += f" para uso en {uso}"
+        if presupuesto:
+            bot_response += f" dentro del presupuesto de S/ {presupuesto}"
+            
+        bot_response += ".**\n\n"
+        bot_response += "💡 **Sugerencias:**\n"
+        bot_response += "• Intenta con un presupuesto más amplio\n"
+        bot_response += "• Busca en otras categorías de productos\n"
+        bot_response += "• Consulta nuestro catálogo completo\n\n"
+        bot_response += "📞 **O contáctanos directamente:**\n"
+        bot_response += "• WhatsApp: +51 999-888-777\n"
+        bot_response += "• Visitanos en nuestras tiendas\n\n"
+        bot_response += "¡Estamos aquí para ayudarte! 😊"
+        
+        return bot_response, [], None
+
+    def _handle_fallback_recommendation(self, products: List, user_query: str, 
+                                      categoria: Optional[str], uso: Optional[str]) -> tuple:
+        """Manejar recomendaciones de respaldo cuando falla la IA"""
+        bot_response = "🎯 **Mis mejores recomendaciones basadas en calidad y precio:**\n\n"
+        
+        for i, product in enumerate(products, 1):
+            name = getattr(product, 'name', 'Producto')
+            price = getattr(product, 'price', 0)
+            rating = getattr(product, 'rating', 0)
+            brand = getattr(product, 'brand', '')
+            
+            bot_response += f"**{i}. {name}**\n"
+            bot_response += f"💰 S/ {price}"
+            if brand:
+                bot_response += f" | 🏷️ {brand}"
+            if rating:
+                bot_response += f" | ⭐ {rating}/5"
+            bot_response += "\n"
+            
+            # Agregar razón simple según el uso
+            if uso == "gaming":
+                bot_response += "✨ Excelente para gaming y entretenimiento\n\n"
+            elif uso == "trabajo":
+                bot_response += "✨ Ideal para productividad y trabajo\n\n"
+            elif uso == "universidad":
+                bot_response += "✨ Perfecto para estudios y proyectos\n\n"
+            else:
+                bot_response += "✨ Excelente relación calidad-precio\n\n"
+        
+        bot_response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
+        
+        return bot_response, products, None
 
     def _handle_product_search(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]],
                               db: Session) -> tuple:

@@ -92,21 +92,25 @@ Analiza el mensaje y clasifícalo en UNA de estas categorías:
    - Ejemplos: "qué es mejor AMD o Intel", "diferencia entre SSD y HDD", "cuál procesador es mejor"
    - NO incluye: preguntas sobre productos específicos de la tienda
 
-2. **buscar_producto**: Búsqueda de productos del catálogo, solicitudes de recomendaciones, preguntas sobre "el mejor producto que tienes"
-   - Ejemplos: "busco una laptop", "cuál es la mejor laptop que tienes", "recomiéndame una PC", "qué laptops HP tienen"
-   - Incluye: cualquier pregunta sobre productos específicos de la tienda
+2. **buscar_producto**: Búsqueda de productos del catálogo, preguntas sobre categorías específicas
+   - Ejemplos: "busco una laptop", "qué laptops HP tienen", "necesito una computadora"
+   - Incluye: búsquedas directas de productos por categoría o marca
 
-3. **comparar_productos**: Comparación entre productos específicos del catálogo mencionados por nombre
+3. **recomendar_producto**: Solicitudes de recomendaciones inteligentes de productos, especialmente después de ver opciones
+   - Ejemplos: "¿Cuál recomiendas?", "que me recomiendas", "cuál es la mejor laptop que tienes", "cuál me conviene más"
+   - Incluye: cualquier pregunta pidiendo recomendaciones específicas
+
+4. **comparar_productos**: Comparación entre productos específicos del catálogo mencionados por nombre
    - Ejemplos: "compara laptop Dell XPS vs HP Spectre", "diferencias entre estas dos PCs específicas"
 
-4. **ver_especificaciones**: Solicitud de especificaciones técnicas de un producto específico mencionado
+5. **ver_especificaciones**: Solicitud de especificaciones técnicas de un producto específico mencionado
    - Ejemplos: "especificaciones del modelo Lenovo V15", "detalles técnicos de esta laptop"
    - Incluye: cualquier solicitud para ver especificaciones de un producto previamente listado como "la segunda" o "el número 2"
 
-5. **agregar_carrito**: Intención explícita de comprar o agregar productos al carrito
+6. **agregar_carrito**: Intención explícita de comprar o agregar productos al carrito
    - Ejemplos: "quiero comprar este", "agrega al carrito", "lo llevo"
 
-6. **conversacion_general**: Saludos, despedidas, agradecimientos, consultas generales no técnicas
+7. **conversacion_general**: Saludos, despedidas, agradecimientos, consultas generales no técnicas
    - Ejemplos: "hola", "gracias", "cómo estás", "información de la empresa"
 
 RESPONDE EXACTAMENTE en este formato JSON:
@@ -125,11 +129,13 @@ RESPONDE EXACTAMENTE en este formato JSON:
 IMPORTANTE:
 - Para preguntas como "qué es mejor X o Y" donde X,Y son marcas/componentes → "pregunta_tecnologica"
 - Para "busco/quiero/necesito + producto" → "buscar_producto"  
-- Para "cuál es la mejor laptop que tienes" → "buscar_producto"
+- Para "cuál es la mejor laptop que tienes" → "recomendar_producto"
+- Para "¿Cuál recomiendas?" → "recomendar_producto"
+- Para "que me recomiendas" → "recomendar_producto"
 - Para "cuáles son las especificaciones de la segunda" → "ver_especificaciones"
 - Para referencias como "la segunda", "el número 2", etc. → "ver_especificaciones"
 - Confidence: 0.9+ para casos claros, 0.7-0.9 para casos moderados, <0.7 para casos ambiguos
-- should_show_products: false para pregunta_tecnologica y conversacion_general
+- should_show_products: false para pregunta_tecnologica y conversacion_general, true para el resto
 """
         
         return prompt
@@ -165,8 +171,7 @@ IMPORTANTE:
     def _fallback_classification(self, message: str, conversation_history: Optional[list] = None) -> Dict[str, Any]:
         """Clasificación básica de respaldo"""
         message_lower = message.lower()
-        
-        # Palabras clave para diferentes intenciones
+          # Palabras clave para diferentes intenciones
         tech_comparison_keywords = ["mejor", "diferencia", "vs", "versus", "cual", "que", "comparar", "entre"]
         tech_brands_components = [
             "hp", "lenovo", "dell", "asus", "acer", "msi", "apple", "samsung",
@@ -180,17 +185,47 @@ IMPORTANTE:
         greeting_keywords = ["hola", "buenos", "gracias", "adios", "saludos"]
         spec_keywords = ["especificaciones", "specs", "características", "detalles", "información"]
         reference_keywords = ["primera", "primero", "1", "segunda", "segundo", "2", "tercera", "tercero", "3"]
+        recommendation_keywords = ["recomienda", "recomiendan", "recomendas", "recomiende", "sugiere", "sugieres"]
         
         # Verificar si es una solicitud de especificaciones referencial
         is_spec_request = False
         if any(keyword in message_lower for keyword in spec_keywords):
             if any(ref in message_lower for ref in reference_keywords):
                 is_spec_request = True
-        
-        # Verificar si es una solicitud simple de "la segunda", "el 2", etc.
+          # Verificar si es una solicitud simple de "la segunda", "el 2", etc.
         if any(ref in message_lower for ref in reference_keywords) and len(message_lower.split()) <= 4:
             # Si es un mensaje corto con referencia, probablemente quiere ver especificaciones
             is_spec_request = True
+            
+        # Verificar si es una solicitud de recomendación
+        is_recommendation_request = False
+        # Patrones directos de recomendación
+        recommendation_patterns = [
+            "cual recomiendas",
+            "qué recomiendas", 
+            "que recomiendas",
+            "cuál recomiendas",
+            "cual recomendas",
+            "que me recomiendas",
+            "qué me recomiendas",
+            "cual me recomiendas",
+            "cuál me recomiendas",
+            "cual es la mejor",
+            "cuál es la mejor",
+            "que me sugieres",
+            "qué me sugieres"
+        ]
+        
+        for pattern in recommendation_patterns:
+            if pattern in message_lower:
+                is_recommendation_request = True
+                logger.info(f"Detectada solicitud de recomendación con patrón: '{pattern}'")
+                break
+        
+        # También detectar recomendaciones con palabras clave
+        if any(keyword in message_lower for keyword in recommendation_keywords):
+            is_recommendation_request = True
+            logger.info("Detectada solicitud de recomendación por palabra clave")
             
         # Para "cual es la mejor"
         if "cual es la mejor" in message_lower and len(message_lower.split()) <= 6:
@@ -253,10 +288,12 @@ IMPORTANTE:
                 # Si también solicita un producto, darle prioridad a eso
                 if not is_product_request and not is_spec_request:
                     is_tech_comparison = True
-        
-        # Determinar la intención final
+          # Determinar la intención final
         if is_spec_request:
             intent = "ver_especificaciones"
+            should_show = True
+        elif is_recommendation_request:
+            intent = "recomendar_producto"
             should_show = True
         elif any(keyword in message_lower for keyword in greeting_keywords):
             intent = "conversacion_general"
@@ -286,8 +323,7 @@ IMPORTANTE:
             else:
                 intent = "conversacion_general"
                 should_show = False
-        
-        # Asignar entidades específicas para ver_especificaciones cuando se refiere a un producto por número
+          # Asignar entidades específicas para ver_especificaciones cuando se refiere a un producto por número
         entities = {}
         if intent == "ver_especificaciones":
             if "1" in message_lower or "primer" in message_lower or "primera" in message_lower:
@@ -304,8 +340,8 @@ IMPORTANTE:
         
         return {
             "intent": intent,
-            "confidence": 0.9 if is_spec_request else (0.8 if is_product_request else (0.7 if is_tech_comparison else 0.6)),
+            "confidence": 0.9 if is_spec_request else (0.85 if is_recommendation_request else (0.8 if is_product_request else (0.7 if is_tech_comparison else 0.6))),
             "entities": entities,
             "should_show_products": should_show,
-            "reasoning": f"Clasificación de respaldo - Detectado: {'solicitud de especificaciones' if is_spec_request else ('solicitud de producto' if is_product_request else ('pregunta tecnológica' if is_tech_comparison else 'conversación general'))}"
+            "reasoning": f"Clasificación de respaldo - Detectado: {'solicitud de especificaciones' if is_spec_request else ('solicitud de recomendación' if is_recommendation_request else ('solicitud de producto' if is_product_request else ('pregunta tecnológica' if is_tech_comparison else 'conversación general')))}"
         }

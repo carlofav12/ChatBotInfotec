@@ -227,6 +227,18 @@ class ChatbotConfig:
         r"(?:detalles|especificaciones?|info)\s+(?:del|de\s+la?)\s*(?:1|2|3)",
         r"(?:que|qu[eé])\s+(?:tal|sobre|de)\s+(?:el|la)?\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
         r"(?:ver|mostrar|conocer)\s+(?:el|la)?\s*(?:1|2|3|primero|segundo|tercero|primera?|segunda?|tercera?)",
+        
+        # Patrones simples para referencias contextuales directas (NUEVO)
+        r"^(?:la\s+)?segunda?$",                                       # "la segunda", "segunda"
+        r"^(?:el\s+)?segundo$",                                        # "el segundo", "segundo"
+        r"^(?:la\s+)?primera?$",                                       # "la primera", "primera"
+        r"^(?:el\s+)?primero$",                                        # "el primero", "primero"
+        r"^(?:la\s+)?tercera?$",                                       # "la tercera", "tercera"
+        r"^(?:el\s+)?tercero$",                                        # "el tercero", "tercero"
+        r"^[123]$",                                                    # "1", "2", "3"
+        r"^(?:el|la)\s+[123]$",                                        # "el 1", "la 2", "el 3"
+        r"(?:especificaci[oó]n|especificaciones|detalles)\s+(?:de\s+)?(?:la|el)\s+segunda?",  # Con español
+        r"(?:especificaci[oó]n|especificaciones|detalles)\s+(?:del|de\s+la?)\s+segunda?",
     ]
     
     RECOMMEND_PATTERNS = [
@@ -256,9 +268,10 @@ class ChatbotConfig:
         r"(.+)\s+vs\s+(.+)",                                     # "thinkpad vs pavilion"
         r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(.+)\s+o\s+(.+)\s+(?:en|para|de)", # "que es mejor asus o hp EN gaming"
         r"elijo\s+(.+)\s+o\s+(.+)",                             # "elijo thinkpad o pavilion"
-        r"recomienda(?:s)?\s+(.+)\s+o\s+(.+)\s+(?:para|en)",    # "recomiendas hp o dell PARA trabajo"
-        # Nota: Removidos patrones genéricos que capturaban recomendaciones
-    ]# Patrones para preguntas de recomendación general
+        r"recomienda(?:s)?\s+(.+)\s+o\s+(.+)\s+(?:para|en)",    # "recomiendas hp o dell PARA trabajo"        # Nota: Removidos patrones genéricos que capturaban recomendaciones
+    ]
+    
+    # Patrones para preguntas de recomendación general
     RECOMMENDATION_QUERY_PATTERNS = [
         r"qu[eé]\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",      # "que laptop es mejor"
         r"cu[aá]l\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",     # "cual laptop es mejor"  
@@ -271,6 +284,11 @@ class ChatbotConfig:
         r"qu[eé]\s+me\s+recomien(?:da|das)",                           # "que me recomiendas"
         r"cu[aá]l\s+me\s+recomien(?:da|das)",                          # "cual me recomiendas"
         r"cu[aá]l\s+recomien(?:da|das)",                               # "cual recomiendas"
+        r"qu[eé]\s+recomien(?:da|das)",                                # "que recomiendas"
+        r"recomien(?:da|das)\s+algo",                                  # "recomiendas algo"
+        r"tienes\s+alguna\s+recomendaci[oó]n",                         # "tienes alguna recomendacion"
+        r"dame\s+una\s+recomendaci[oó]n",                              # "dame una recomendacion"
+        r"qu[eé]\s+me\s+sugieres",                                     # "que me sugieres"
         r"mejor\s+(?:laptop|pc|computadora|equipo|marca)",             # "mejor laptop", "mejor marca"
         r"(?:laptop|pc|computadora|equipo)\s+recomenda(?:da|do)",      # "laptop recomendada"
     ]
