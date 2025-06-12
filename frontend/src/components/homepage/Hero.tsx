@@ -16,7 +16,7 @@ export const Hero: React.FC = () => {
       description:
         "Encuentra las mejores laptops gamer y profesionales con garantía y soporte técnico especializado.",
       buttonText: "Ver Laptops",
-      bg: ["#002855", "#003f7f", "#001F3F"]
+      bg: ["#003366", "#003366", "#003366"]
     },
     {
       title: "Envíos a Nivel Nacional",
@@ -24,7 +24,7 @@ export const Hero: React.FC = () => {
       description:
         "Soluciones para empresas, equipos potentes y configuraciones a medida.",
       buttonText: "Ver Equipos",
-      bg: ["#002855", "#003f7f", "#001F3F"]
+      bg: ["#003366", "#003366", "#003366"]
     },
     {
       title: "Tecnología de Confianza",
@@ -32,7 +32,7 @@ export const Hero: React.FC = () => {
       description:
         "Productos con garantía extendida, precios competitivos y atención personalizada.",
       buttonText: "Ver Pantallas",
-      bg: ["#002855", "#003f7f", "#001F3F"]
+      bg: ["#003366", "#003366", "#003366"]
     }
   ];
 
@@ -44,28 +44,26 @@ export const Hero: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[#F3F4F6] font-sans">
+    <div className="bg-[#FFFFFF] font-sans">
       <div className="relative h-[520px] overflow-hidden">
         {/* Fondo con gradiente y overlays */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-br from-[${slides[currentSlide].bg[0]}] via-[${slides[currentSlide].bg[1]}] to-[${slides[currentSlide].bg[2]}] transition-all duration-1000`}
-        >
-          <div className="absolute inset-0 to-[#003f7f]" />
+        <div className="absolute inset-0 bg-[#F36A21] transition-all duration-1000">
+          <div className="absolute inset-0" />
         </div>
 
         {/* Contenido del Hero */}
         <div className="relative z-10 max-w-7xl mx-auto px-6 h-full flex items-center">
           <div className="text-white max-w-4xl">
             <div className="flex items-center space-x-2 mb-4">
-              <Award className="w-6 h-6 text-[#FFD100]" />
-              <span className="text-sm uppercase tracking-wider text-[#FFD100]">
+              <Award className="w-6 h-6 text-[#003366]" />
+              <span className="text-sm uppercase tracking-wider text-[#003366]">
                 {slides[currentSlide].title}
               </span>
             </div>
 
             <h1 className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight">
               {slides[currentSlide].subtitle.split(' ').slice(0, -1).join(' ')}{" "}
-              <span className="text-[#FFD100]">
+              <span className="text-[#003366]">
                 {slides[currentSlide].subtitle.split(' ').slice(-1)}
               </span>
             </h1>
@@ -75,17 +73,12 @@ export const Hero: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="bg-[#FFD100] text-[#002855] px-8 py-3 rounded-xl font-bold text-lg hover:bg-yellow-300 transition transform hover:scale-105 shadow-md">
+              <button className="bg-[#FFFFFF] text-black px-8 py-3 rounded-xl font-bold text-lg hover:bg-[#FFFFFF] transition transform hover:scale-105 shadow-md">
                 {slides[currentSlide].buttonText}
               </button>
-              <button className="border-2 border-white text-blacks px-8 py-3 rounded-xl font-semibold text-lg hover:bg-white hover:text-[#002855] transition">
+              <button className="bg-[#FFFFFF] text-black px-8 py-3 rounded-xl font-semibold text-lg transition transform hover:scale-105 shadow-md hover:text-[#F36A21]">
                 Ver Catálogo Completo
               </button>
-            </div>
-
-            <div className="flex items-center mt-8 text-sm text-gray-200">
-              <MapPin className="w-4 h-4 mr-2" />
-              <span>Envíos a todo el Perú • Tiendas físicas • Soporte 24/7</span>
             </div>
           </div>
         </div>
@@ -112,11 +105,10 @@ export const Hero: React.FC = () => {
             <button
               key={idx}
               onClick={() => setCurrentSlide(idx)}
-              className={`rounded-full transition-all duration-300 ${
-                idx === currentSlide
-                  ? 'bg-[#FFD100] w-8 h-3'
-                  : 'bg-white bg-opacity-40 w-3 h-3 hover:bg-opacity-80'
-              }`}
+              className={`rounded-full transition-all duration-300 ${idx === currentSlide
+                ? 'bg-[#F36A21] w-8 h-3'
+                : 'bg-white bg-opacity-40 w-3 h-3 hover:bg-opacity-80'
+                }`}
             />
           ))}
         </div>

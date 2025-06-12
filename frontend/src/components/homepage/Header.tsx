@@ -12,7 +12,7 @@ export const Header: React.FC = () => {
   return (
     <header className="bg-white shadow-md font-sans">
       {/* Top bar */}
-      <div className="bg-gradient-to-r from-[#001F3F] via-[#002855] to-[#003f7f] text-black text-sm">
+      <div className="bg-gradient-to-r text-black text-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center">
           <div className="flex space-x-6">
             <div className="flex items-center">
@@ -41,15 +41,14 @@ export const Header: React.FC = () => {
         {/* Enhanced Search bar */}
         <div className="w-full max-w-2xl relative">
           {/* Search container with gradient background */}
-          <div className={`relative overflow-hidden rounded-2xl transition-all duration-300 ${
-            isFocused 
-              ? 'shadow-2xl shadow-[#FFD100]/20 scale-105' 
-              : 'shadow-lg hover:shadow-xl hover:scale-102'
-          }`}>
-            
+          <div className={`relative overflow-hidden rounded-2xl transition-all duration-300 ${isFocused
+            ? 'shadow-2xl shadow-[#FFD100]/20 scale-105'
+            : 'shadow-lg hover:shadow-xl hover:scale-102'
+            }`}>
+
             {/* Animated gradient background */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#FFD100] via-[#FFF200] to-[#FFD100] opacity-10 animate-pulse"></div>
-            
+
             {/* Main search input */}
             <div className="relative bg-white/95 backdrop-blur-sm">
               <input
@@ -61,39 +60,37 @@ export const Header: React.FC = () => {
                 placeholder="¿Qué estás buscando hoy?"
                 className="w-full pl-14 pr-32 py-4 text-lg bg-transparent border-2 border-transparent rounded-2xl focus:border-[#FFD100] focus:outline-none transition-all duration-300 placeholder-gray-500"
               />
-              
+
               {/* Search icon with animation */}
-              <div className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${
-                isFocused ? 'text-[#FFD100] scale-110' : 'text-gray-400'
-              }`}>
+              <div className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${isFocused ? 'text-[#FFD100] scale-110' : 'text-gray-400'
+                }`}>
                 <Search className="h-6 w-6" />
               </div>
-              
+
               {/* Action buttons */}
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                 {/* Voice search button */}
                 <button className="p-2 rounded-full bg-gray-100 hover:bg-[#FFD100] hover:text-white transition-all duration-300 group">
                   <Mic className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </button>
-                
+
                 {/* Camera search button */}
                 <button className="p-2 rounded-full bg-gray-100 hover:bg-[#FFD100] hover:text-white transition-all duration-300 group">
                   <Camera className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </button>
-                
+
                 {/* Search button */}
                 <button className="px-6 py-2 bg-gradient-to-r from-[#FFD100] to-[#FFF200] text-black font-semibold rounded-full hover:shadow-lg hover:scale-105 transition-all duration-300 hover:from-[#FFF200] hover:to-[#FFD100]">
                   Buscar
                 </button>
               </div>
             </div>
-            
+
             {/* Bottom glow effect */}
-            <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-3/4 h-1 bg-gradient-to-r from-transparent via-[#FFD100] to-transparent rounded-full transition-opacity duration-300 ${
-              isFocused ? 'opacity-60' : 'opacity-0'
-            }`}></div>
+            <div className={`absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-3/4 h-1 bg-gradient-to-r from-transparent via-[#FFD100] to-transparent rounded-full transition-opacity duration-300 ${isFocused ? 'opacity-60' : 'opacity-0'
+              }`}></div>
           </div>
-          
+
           {/* Search suggestions (visible when focused) */}
           {isFocused && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">

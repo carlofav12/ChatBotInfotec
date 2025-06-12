@@ -65,7 +65,7 @@ export const ProductSections: React.FC = () => {
   return (
     <div className="bg-white py-16 mb-24 font-nunito">
       <div className="max-w-7xl mx-auto px-4">
-        <h2 className="text-3xl font-bold text-[#002855] mb-8 text-center">
+        <h2 className="text-3xl font-bold text-[#003366] mb-8 text-center">
           Nuestros Productos
         </h2>
 
@@ -108,12 +108,12 @@ export const ProductSections: React.FC = () => {
                   {product.name}
                 </h3>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[#002855] font-bold text-base">
+                  <span className="text-[#003366] font-bold text-base">
                     S/ {product.price.toFixed(2)}
                   </span>
                   <button
                     onClick={(e) => handleAddToCart(product, e)}
-                    className="bg-[#FFD100] text-[#002855] p-2 rounded hover:bg-yellow-400 transition"
+                    className="bg-[#F36A21] text-white p-2 rounded hover:bg-orange-600 transition"
                     title="Agregar al Carrito"
                   >
                     <ShoppingCart className="w-4 h-4" />
