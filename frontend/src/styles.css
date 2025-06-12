@@ -16,7 +16,7 @@ body {
 
 /* Variables de colores Infotec - ahora naranja principal */
 :root {
-  --infotec-orange: #FFD100;
+  --infotec-orange: #F36A21;
   --infotec-orange-dark: #ea580c;
   --infotec-indigo: #4f46e5;
   --gray-50: #f9fafb;
@@ -248,7 +248,7 @@ body {
 }
 
 .btn-primary {
-  background-color: #FFD100;
+  background-color: #F36A21;
   color: white;
 }
 
@@ -388,7 +388,7 @@ body {
   left: -0.25rem;
   width: 0.75rem;
   height: 0.75rem;
-  background: #10b981;
+  background: #F36A21;
   border-radius: 50%;
   border: 2px solid white;
 }
@@ -638,7 +638,7 @@ body {
 }
 
 input:checked+.toggle-slider {
-  background-color: #10b981;
+  background-color: #F36A21;
 }
 
 input:checked+.toggle-slider:before {

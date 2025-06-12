@@ -47,7 +47,7 @@ export const Header: React.FC = () => {
             }`}>
 
             {/* Animated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#FFD100] via-[#FFF200] to-[#FFD100] opacity-10 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-r opacity-10 animate-pulse"></div>
 
             {/* Main search input */}
             <div className="relative bg-white/95 backdrop-blur-sm">
@@ -58,29 +58,23 @@ export const Header: React.FC = () => {
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder="¿Qué estás buscando hoy?"
-                className="w-full pl-14 pr-32 py-4 text-lg bg-transparent border-2 border-transparent rounded-2xl focus:border-[#FFD100] focus:outline-none transition-all duration-300 placeholder-gray-500"
+                className="w-full pl-14 pr-32 py-4 text-lg bg-transparent border-2 border-transparent rounded-2xl focus:border-[#F36A21] focus:outline-none transition-all duration-300 placeholder-gray-500"
               />
-
-              {/* Search icon with animation */}
-              <div className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${isFocused ? 'text-[#FFD100] scale-110' : 'text-gray-400'
-                }`}>
-                <Search className="h-6 w-6" />
-              </div>
 
               {/* Action buttons */}
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
                 {/* Voice search button */}
-                <button className="p-2 rounded-full bg-gray-100 hover:bg-[#FFD100] hover:text-white transition-all duration-300 group">
+                <button className="p-2 rounded-full bg-gray-100 hover:bg-[#F36A21] hover:text-white transition-all duration-300 group">
                   <Mic className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </button>
 
                 {/* Camera search button */}
-                <button className="p-2 rounded-full bg-gray-100 hover:bg-[#FFD100] hover:text-white transition-all duration-300 group">
+                <button className="p-2 rounded-full bg-gray-100 hover:bg-[#F36A21] hover:text-white transition-all duration-300 group">
                   <Camera className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </button>
 
                 {/* Search button */}
-                <button className="px-6 py-2 bg-gradient-to-r from-[#FFD100] to-[#FFF200] text-black font-semibold rounded-full hover:shadow-lg hover:scale-105 transition-all duration-300 hover:from-[#FFF200] hover:to-[#FFD100]">
+                <button className="px-6 py-2 bg-gradient-to-r from-[#F36A21] to-[#FFF200] text-black font-semibold rounded-full hover:shadow-lg hover:scale-105 transition-all duration-300 hover:from-[#FFF200] hover:to-[#FFD100]">
                   Buscar
                 </button>
               </div>
