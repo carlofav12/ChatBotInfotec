@@ -8,11 +8,15 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.database import Product
 from app.models import Product as ProductModel
+from ..core.config import ChatbotConfig
 
 logger = logging.getLogger(__name__)
 
 class ProductService:
     """Servicio para operaciones con productos"""
+    
+    def __init__(self):
+        self.config = ChatbotConfig()
     
     def search_products(self, db: Session, search_query: str, max_price: Optional[int] = None) -> List[ProductModel]:
         """Buscar productos en la base de datos"""
@@ -199,6 +203,7 @@ class ProductService:
     def add_to_cart(self, db: Session, product_id: int, quantity: int = 1, 
                     user_id: Optional[int] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Agregar producto al carrito - Versión mejorada con mejor respuesta"""
+        
         try:
             # Verificar que el producto existe y tiene stock
             product = db.query(Product).filter(Product.id == product_id).first()
@@ -290,3 +295,39 @@ class ProductService:
                 "message": "❌ Error interno del sistema. Contacta al soporte técnico de GRUPO INFOTEC.",
                 "product": None
             }
+    
+    def get_all_products_for_recommendation(self, db: Session, category: Optional[str] = None, 
+                                          use_case: Optional[str] = None, limit: int = 50) -> List[ProductModel]:
+        """Obtener todos los productos disponibles para análisis y recomendación por IA"""
+        try:
+            from app.crud import get_products, search_products as crud_search_products
+            
+            logger.info(f"Obteniendo productos para recomendación - categoría: {category}, uso: {use_case}")
+            
+            # Si hay una categoría específica, buscar por ella
+            if category:
+                db_products = crud_search_products(db, category, limit=limit)
+            else:
+                # Obtener todos los productos activos
+                db_products = get_products(db, skip=0, limit=limit)
+            
+            # Convertir a modelos Pydantic y filtrar por stock
+            products = []
+            for db_product in db_products:
+                try:
+                    product_model = ProductModel.from_orm(db_product)
+                    
+                    # Solo incluir productos con stock
+                    if product_model.stock_quantity > 0:
+                        products.append(product_model)
+                        
+                except Exception as e:
+                    logger.warning(f"Error convirtiendo producto: {e}")
+                    continue
+            
+            logger.info(f"Encontrados {len(products)} productos para recomendación")
+            return products
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo productos para recomendación: {e}")
+            return []

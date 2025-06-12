@@ -7,14 +7,33 @@ from typing import Dict, List, Any
 
 class ChatbotConfig:
     """Configuración y datos estáticos del chatbot"""
-    
-    # Información extendida de la empresa
+      # Información extendida de la empresa
     COMPANY_INFO = {
         "nombre": "GRUPO INFOTEC",
         "descripcion": "Empresa líder en tecnología y servicios informáticos en Perú",
         "despedida": "¡Gracias por chatear con InfoBot! Que tengas un buen día. 😊",
         "agradecimiento": "¡De nada! Estoy aquí para ayudarte. 😊",
         "producto_no_encontrado": "Lo siento, no pude encontrar ese producto específico. ¿Podrías verificar el nombre o darme más detalles? 🤔",
+        "ubicaciones": [
+            {
+                "nombre": "Tienda Principal - Centro de Lima",
+                "direccion": "Jr. Lampa 1234, Cercado de Lima, Lima",
+                "telefono": "+51 999-888-777",
+                "horario": "Lun-Sáb 9:00am-8:00pm"
+            },
+            {
+                "nombre": "Sucursal Miraflores",
+                "direccion": "Av. Larco 456, Miraflores, Lima", 
+                "telefono": "+51 999-888-778",
+                "horario": "Lun-Sáb 10:00am-9:00pm, Dom 10:00am-6:00pm"
+            },
+            {
+                "nombre": "Sucursal San Isidro",
+                "direccion": "Av. Javier Prado Este 789, San Isidro, Lima",
+                "telefono": "+51 999-888-779", 
+                "horario": "Lun-Vie 9:00am-7:00pm, Sáb 9:00am-6:00pm"
+            }
+        ],
         "especialidades": [
             "Computadoras de escritorio y laptops",
             "Equipos gaming de alta gama", 
@@ -58,8 +77,7 @@ class ChatbotConfig:
 • Disponible en 2-4 horas
 
 ¿Te gustaría conocer más detalles sobre alguna opción de envío?"""
-        },
-        "garantia": {
+        },        "garantia": {
             "patterns": ["garantía", "garantia", "garantizada", "cobertura", "servicio técnico"],
             "response": """🛡️ **Garantía Grupo INFOTEC:**
 
@@ -78,6 +96,28 @@ class ChatbotConfig:
 • Horario: Lun-Sáb 8am-8pm
 
 ¿Necesitas más información sobre la garantía?"""
+        },
+        "ubicacion": {
+            "patterns": ["ubicación", "ubicacion", "dirección", "direccion", "donde están", "donde quedan", 
+                        "sucursales", "tiendas", "local", "locales", "como llegar", "dónde", "donde"],
+            "response": """📍 **Nuestras Ubicaciones - GRUPO INFOTEC:**
+
+🏪 **Tienda Principal - Centro de Lima**
+📍 Jr. Lampa 1234, Cercado de Lima, Lima
+📞 +51 999-888-777
+🕒 Lun-Sáb 9:00am-8:00pm
+
+🏪 **Sucursal Miraflores**
+📍 Av. Larco 456, Miraflores, Lima
+📞 +51 999-888-778  
+🕒 Lun-Sáb 10:00am-9:00pm, Dom 10:00am-6:00pm
+
+🏪 **Sucursal San Isidro**
+📍 Av. Javier Prado Este 789, San Isidro, Lima
+📞 +51 999-888-779
+🕒 Lun-Vie 9:00am-7:00pm, Sáb 9:00am-6:00pm
+
+¿Te gustaría más información sobre alguna sucursal específica?"""
         },
         "financiamiento": {
             "patterns": ["financiamiento", "cuotas", "pagar en partes", "crédito", "facilidades"],
@@ -186,24 +226,25 @@ class ChatbotConfig:
         r"(?:laptop|pc|monitor|tablet)\s+(?:[a-zA-Z0-9]+\s*){1,5}", 
         r"(?:[a-zA-Z]+\s+){0,2}(?:xps|macbook|thinkpad|rog|omen|spectre|zenbook|ideapad|legion|alienware|envy|pavilion|aspire|predator|surface)\s*\d*\s*[a-zA-Z0-9]*" # Ej: Dell XPS 13, ROG Strix G15
     ]
-    
+      # Patrones para comparación de productos ESPECÍFICOS (marcas/modelos concretos)
     COMPARISON_PATTERNS = [
-        r"cu[aá]l es mejor\s*(.+)\s*o\s*(.+)",          # "cual es mejor lenovo o hp"
-        r"qu[eé] es mejor\s*(.+)\s*o\s*(.+)",           # "que es mejor asus o dell"
-        r"mejor\s*(.+)\s*o\s*(.+)",                     # "mejor hp o lenovo"
-        r"compara(?:r)?\s*(.+)\s*(?:con|vs|versus)\s*(.+)",  # "compara lenovo con hp"
-        r"diferencias?\s+entre\s*(.+)\s*y\s*(.+)",      # "diferencia entre" o "diferencias entre"
-        r"cu[aá]l es mejor entre\s*(.+)\s*y\s*(.+)",    # "cual es mejor entre asus y acer"
-        r"(.+)\s*vs\s*(.+)",                            # "hp vs dell"
-        r"recomienda(?:s)?\s*(.+)\s*o\s*(.+)",          # "recomiendas hp o dell"
-        r"elijo\s*(.+)\s*o\s*(.+)",                     # "elijo asus o hp"
-        r"prefiere(?:s)?\s*(.+)\s*o\s*(.+)"             # "prefieres lenovo o acer"
-    ]
-    
-    # Patrones para preguntas de recomendación general
+        r"compara(?:r)?\s+(.+)\s+(?:con|vs|versus)\s+(.+)",     # "compara lenovo thinkpad con hp pavilion"
+        r"diferencias?\s+entre\s+(.+)\s+y\s+(.+)",              # "diferencias entre asus rog y acer predator"
+        r"(.+)\s+vs\s+(.+)",                                     # "thinkpad vs pavilion"
+        r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(.+)\s+o\s+(.+)\s+(?:en|para|de)", # "que es mejor asus o hp EN gaming"
+        r"elijo\s+(.+)\s+o\s+(.+)",                             # "elijo thinkpad o pavilion"
+        r"recomienda(?:s)?\s+(.+)\s+o\s+(.+)\s+(?:para|en)",    # "recomiendas hp o dell PARA trabajo"
+        # Nota: Removidos patrones genéricos que capturaban recomendaciones
+    ]# Patrones para preguntas de recomendación general
     RECOMMENDATION_QUERY_PATTERNS = [
         r"qu[eé]\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",      # "que laptop es mejor"
         r"cu[aá]l\s+(?:laptop|pc|computadora|equipo)\s+es\s+mejor",     # "cual laptop es mejor"  
+        r"cu[aá]l\s+es\s+la\s+mejor\s+(?:laptop|pc|computadora|equipo)", # "cual es la mejor laptop"
+        r"qu[eé]\s+es\s+la\s+mejor\s+(?:laptop|pc|computadora|equipo)",  # "que es la mejor laptop"
+        r"mejor\s+(?:laptop|pc|computadora|equipo)\s+que\s+tienes?",     # "mejor laptop que tienes"
+        r"cu[aá]l\s+es\s+la\s+mejor\s+(?:laptop|pc|computadora|equipo)\s+que\s+tienes?", # "cual es la mejor laptop que tienes"
+        r"cu[aá]les\s+son\s+las?\s+mejores?\s+(?:laptop|pc|computadora|equipo)s?\s+que\s+tienes?", # "cuales son las mejores laptops que tienes"
+        r"qu[eé]\s+(?:laptop|pc|computadora|equipo)s?\s+son\s+las?\s+mejores?", # "que laptops son las mejores"
         r"qu[eé]\s+me\s+recomien(?:da|das)",                           # "que me recomiendas"
         r"cu[aá]l\s+me\s+recomien(?:da|das)",                          # "cual me recomiendas"
         r"cu[aá]l\s+recomien(?:da|das)",                               # "cual recomiendas"

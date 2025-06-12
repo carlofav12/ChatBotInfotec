@@ -23,8 +23,20 @@ class EntityExtractor:
         }
         
         message_lower = message.lower()
-        self._extract_comparison_entities(message_lower, entities)
-        if not entities.get("accion") == "comparar_productos":
+        
+        # PRIMERO: Detectar solicitudes de recomendación (tienen prioridad)
+        self._extract_recommend_action(message_lower, entities)
+        
+        # SEGUNDO: Si no es recomendación, verificar si es pregunta tecnológica general
+        if not entities.get("accion"):
+            self._extract_tech_question(message_lower, entities)
+        
+        # TERCERO: Si no es recomendación ni pregunta tech, verificar comparaciones específicas
+        if not entities.get("accion"):
+            self._extract_comparison_entities(message_lower, entities)
+        
+        # CUARTO: Extraer otros datos si no es una acción específica
+        if not entities.get("accion") or entities.get("accion") in ["buscar_productos", "pregunta_tecnologica"]:
             # Extraer productos específicos
             self._extract_product_category(message_lower, entities)
             
@@ -45,9 +57,6 @@ class EntityExtractor:
             
             # Detectar solicitud de especificaciones
             self._extract_spec_action(message_lower, entities)
-            
-            # Detectar solicitud de recomendación
-            self._extract_recommend_action(message_lower, entities)
             
             # Extraer nombre específico de producto mencionado
             self._extract_specific_product_name(message_lower, entities)
@@ -105,10 +114,26 @@ class EntityExtractor:
             entities["accion"] = "ver_especificaciones"
     
     def _extract_recommend_action(self, message_lower: str, entities: Dict[str, Any]) -> None:
-        """Detectar solicitud de recomendación"""
-        if any(pattern in message_lower for pattern in self.config.RECOMMEND_PATTERNS):
-            entities["accion"] = "recomendar"
-    
+        """Detectar solicitudes de recomendación inteligente"""
+        # Verificar si el mensaje coincide con patrones de recomendación
+        for pattern in self.config.RECOMMENDATION_QUERY_PATTERNS:
+            if re.search(pattern, message_lower):
+                entities["accion"] = "recomendar_categoria"
+                
+                # Extraer la categoría mencionada en el patrón
+                category_match = re.search(r"(laptop|pc|computadora|equipo)s?", message_lower)
+                if category_match:
+                    category = category_match.group(1)
+                    if category in ["laptop", "computadora"]:
+                        entities["categoria"] = "laptop"
+                    elif category in ["pc", "equipo"]:
+                        entities["categoria"] = "pc"
+                    else:
+                        entities["categoria"] = category
+                
+                logger.info(f"Detectada solicitud de recomendación para categoría: {entities.get('categoria', 'general')}")
+                break
+
     def _extract_specific_product_name(self, message_lower: str, entities: Dict[str, Any]) -> None:
         """Extraer nombre específico del producto mencionado"""
         for pattern in self.config.SPECIFIC_PRODUCT_PATTERNS:
@@ -164,6 +189,10 @@ class EntityExtractor:
         
         # Comparar productos
         if entities.get("accion") == "comparar_productos" and (entities.get("productos_a_comparar") or entities.get("marcas_a_comparar")):
+            return True
+            
+        # Recomendar por categoría específica
+        if entities.get("accion") == "recomendar_categoria":
             return True
             
         if entities.get("producto_especifico"):
@@ -261,3 +290,47 @@ class EntityExtractor:
                  # Podríamos querer buscar productos de estas marcas.
                  # Por ahora, el servicio de producto decidirá cómo manejar esto.
                  pass
+
+    def _extract_recommend_action(self, message_lower: str, entities: Dict[str, Any]) -> None:
+        """Detectar solicitudes de recomendación inteligente"""
+        # Verificar si el mensaje coincide con patrones de recomendación
+        for pattern in self.config.RECOMMENDATION_QUERY_PATTERNS:
+            if re.search(pattern, message_lower):
+                entities["accion"] = "recomendar_categoria"
+                
+                # Extraer la categoría mencionada en el patrón
+                category_match = re.search(r"(laptop|pc|computadora|equipo)s?", message_lower)
+                if category_match:
+                    category = category_match.group(1)
+                    if category in ["laptop", "computadora"]:
+                        entities["categoria"] = "laptop"
+                    elif category in ["pc", "equipo"]:
+                        entities["categoria"] = "pc"
+                    else:
+                        entities["categoria"] = category
+                
+                logger.info(f"Detectada solicitud de recomendación para categoría: {entities.get('categoria', 'general')}")
+                break
+
+    def _extract_tech_question(self, message_lower: str, entities: Dict[str, Any]) -> None:
+        """Detectar preguntas tecnológicas generales (no sobre productos específicos)"""
+        
+        # Patrones para preguntas tecnológicas generales
+        tech_question_patterns = [
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(?:una\s+)?laptop\s+o\s+(?:una\s+)?pc",  # "que es mejor una laptop o una pc"
+            r"(?:qu[eé]|cu[aá]l)\s+es\s+mejor\s+(?:una\s+)?pc\s+o\s+(?:una\s+)?laptop",  # "que es mejor una pc o una laptop"
+            r"laptop\s+o\s+pc\s+(?:para|qu[eé])",                                        # "laptop o pc para gaming"
+            r"pc\s+o\s+laptop\s+(?:para|qu[eé])",                                        # "pc o laptop para trabajo"
+            r"diferencia\s+entre\s+laptop\s+y\s+pc",                                     # "diferencia entre laptop y pc"
+            r"diferencia\s+entre\s+pc\s+y\s+laptop",                                     # "diferencia entre pc y laptop"
+            r"ventajas?\s+(?:de\s+)?laptop\s+(?:vs?|o)\s+pc",                           # "ventajas de laptop vs pc"
+            r"ventajas?\s+(?:de\s+)?pc\s+(?:vs?|o)\s+laptop",                           # "ventajas de pc vs laptop"
+            r"(?:qu[eé]|cu[aá]l)\s+conviene\s+más\s+laptop\s+o\s+pc",                   # "que conviene más laptop o pc"
+        ]
+        
+        for pattern in tech_question_patterns:
+            if re.search(pattern, message_lower):
+                entities["accion"] = "pregunta_tecnologica"
+                entities["tipo_pregunta"] = "laptop_vs_pc"
+                logger.info("Detectada pregunta tecnológica general: laptop vs pc")
+                break

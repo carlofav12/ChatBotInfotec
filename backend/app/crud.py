@@ -1,5 +1,6 @@
 # CRUD operations for e-commerce
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from typing import List, Optional
 from app.database import User, Product, Category, Cart, Order, OrderItem, cart_items
 from app.models import UserCreate, ProductCreate, CategoryCreate, OrderCreate

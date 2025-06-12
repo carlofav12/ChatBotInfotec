@@ -129,91 +129,129 @@ Lo siento, en este momento tengo limitaciones para realizar una comparación det
         count: int = 3
     ) -> str:
         """
-        Recomienda los mejores productos usando IA avanzada.
+        Genera recomendaciones inteligentes de productos usando IA
         """
-        logger.info(f"LLM Recomendación: Top {count} productos para query: '{user_query}'")
-
-        if not candidate_products:
-            return "Lo siento, no tengo productos disponibles para recomendar en este momento."
-
+        logger.info(f"Generando recomendaciones IA para {len(candidate_products)} productos")
+        
         if not self.model:
             return self._fallback_recommendation_response(candidate_products, user_query, count)
-
+        
         try:
-            prompt = self._build_recommendation_prompt(candidate_products, user_query, category, use_case, count)
+            prompt = self._build_recommendation_prompt(
+                candidate_products, user_query, category, use_case, count
+            )
             response = self.model.generate_content(prompt)
             return response.text.strip()
             
         except Exception as e:
-            logger.error(f"Error en recomendación LLM: {e}")
+            logger.error(f"Error generando recomendaciones con IA: {e}")
             return self._fallback_recommendation_response(candidate_products, user_query, count)
 
-    def _build_recommendation_prompt(self, candidate_products: List[Dict[str, Any]], user_query: str, 
-                                   category: Optional[str], use_case: Optional[str], count: int) -> str:
-        """Construir prompt para recomendaciones inteligentes"""
+    def _build_recommendation_prompt(
+        self,
+        products: List[Dict[str, Any]],
+        user_query: str,
+        category: Optional[str],
+        use_case: Optional[str],
+        count: int
+    ) -> str:
+        """Construir prompt para recomendaciones"""
         
-        prompt = f"""
-Eres un consultor experto en tecnología de GRUPO INFOTEC, empresa líder en Perú con +15 años de experiencia.
-
-TAREA: Analiza los siguientes productos y recomienda los {count} mejores según la consulta del cliente.
-
-CONSULTA DEL CLIENTE: "{user_query}"
-"""
-        
-        if category:
-            prompt += f"CATEGORÍA DE INTERÉS: {category}\n"
-        if use_case:
-            prompt += f"USO PRINCIPAL: {use_case}\n"
-        
-        prompt += "\nPRODUCTOS DISPONIBLES:\n"
-        
-        for i, prod_data in enumerate(candidate_products[:10]):
-            prompt += f"\n{i+1}. **{prod_data.get('name', 'Producto')}**\n"
-            prompt += f"   • Precio: S/ {prod_data.get('price', 'Consultar')}\n"
-            if prod_data.get('description'):
-                prompt += f"   • Descripción: {prod_data.get('description', '')[:100]}...\n"
-            if prod_data.get('specifications'):
-                specs = prod_data.get('specifications', {})
+        # Formatear productos para el prompt
+        products_text = ""
+        for i, product in enumerate(products[:50], 1):  # Máximo 50 productos para análisis
+            specs_text = ""
+            if product.get("specifications"):
+                specs = product["specifications"]
                 if isinstance(specs, dict):
-                    for key, value in list(specs.items())[:3]:  # Primeras 3 specs
-                        prompt += f"   • {key.replace('_', ' ').title()}: {value}\n"
-        
-        prompt += f"""
+                    specs_text = ", ".join([f"{k}: {v}" for k, v in specs.items() if v])
+                else:
+                    specs_text = str(specs)
+            
+            products_text += f"""
+{i}. {product.get('name', 'N/A')}
+   - Precio: S/ {product.get('price', 0)}
+   - Marca: {product.get('brand', 'N/A')}
+   - Rating: {product.get('rating', 'N/A')}/5
+   - Stock: {product.get('stock_quantity', 0)}
+   - Descripción: {product.get('description', 'N/A')}
+   - Especificaciones: {specs_text or 'N/A'}
+"""
+
+        context_info = ""
+        if category:
+            context_info += f"Categoría solicitada: {category}\n"
+        if use_case:
+            context_info += f"Caso de uso: {use_case}\n"
+
+        return f"""Eres InfoBot de GRUPO INFOTEC, especialista en tecnología. Analiza estos {len(products)} productos y recomienda los {count} mejores para la consulta del usuario.
+
+CONSULTA DEL USUARIO: "{user_query}"
+{context_info}
+
+PRODUCTOS DISPONIBLES:
+{products_text}
 
 INSTRUCCIONES:
-1. Analiza cada producto según la consulta del cliente
-2. Recomienda los {count} mejores productos
-3. Explica por qué cada uno es ideal para el cliente
-4. Considera precio, calidad, especificaciones y caso de uso
-5. Usa un tono entusiasta pero profesional
-6. Incluye emojis moderadamente
-7. Máximo 250 palabras
+1. Analiza TODOS los productos considerando: precio, especificaciones, rating, stock, relación calidad-precio
+2. Selecciona los {count} mejores productos que respondan mejor a la consulta
+3. Ordénalos del mejor al menos recomendado
+4. Para cada recomendación incluye:
+   - Nombre del producto exacto
+   - Precio
+   - 2-3 razones principales por las que lo recomiendas
+   - Un beneficio clave específico
 
-Formato de respuesta:
-🎯 **Mis {count} recomendaciones principales para ti:**
+FORMATO DE RESPUESTA (máximo 150 palabras):
+🎯 **Mis {count} mejores recomendaciones:**
 
-1. **[Nombre producto]** (S/ [precio])
-   ✨ [Explicación breve por qué es ideal]
+**1. [Nombre exacto]** (S/ [precio])
+✨ [Razón principal] - [Beneficio específico]
 
-[Continuar con otros productos]
+**2. [Nombre exacto]** (S/ [precio])  
+✨ [Razón principal] - [Beneficio específico]
 
-💡 **¿Por qué estas opciones?** [Resumen breve]
+**3. [Nombre exacto]** (S/ [precio])
+✨ [Razón principal] - [Beneficio específico]
+
+💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊
+
+IMPORTANTE: 
+- Solo recomienda productos de la lista proporcionada
+- Usa los nombres exactos de los productos
+- Sé conciso pero informativo
+- Responde como InfoBot de GRUPO INFOTEC
 """
-        
-        return prompt
 
-    def _fallback_recommendation_response(self, candidate_products: List[Dict[str, Any]], 
-                                        user_query: str, count: int) -> str:
+    def _fallback_recommendation_response(
+        self,
+        products: List[Dict[str, Any]],
+        user_query: str,
+        count: int
+    ) -> str:
         """Respuesta de respaldo para recomendaciones"""
-        response = f"🎯 **Aquí tienes {min(count, len(candidate_products))} opciones para '{user_query}':**\n\n"
+        # Ordenar productos por rating y precio para dar mejores primero
+        sorted_products = sorted(
+            products, 
+            key=lambda x: (x.get('rating', 0) or 0, -(x.get('price', 0) or 0)), 
+            reverse=True
+        )
         
-        for i, prod in enumerate(candidate_products[:count]):
-            response += f"{i+1}. **{prod.get('name', 'Producto')}** (S/ {prod.get('price', 'Consultar')})\n"
-            if prod.get('description'):
-                response += f"   💡 {prod.get('description', '')[:80]}...\n"
-            response += "\n"
+        response = f"🎯 **Mis {count} mejores recomendaciones:**\n\n"
         
-        response += "💬 Para una recomendación más personalizada, ¡consultemos juntos tus necesidades específicas!"
+        for i, product in enumerate(sorted_products[:count], 1):
+            name = product.get('name', 'Producto')
+            price = product.get('price', 0)
+            brand = product.get('brand', '')
+            rating = product.get('rating', 0)
+            
+            brand_text = f" de {brand}" if brand else ""
+            rating_text = f" - Rating {rating}/5" if rating else ""
+            
+            response += f"**{i}. {name}** (S/ {price})\n"
+            response += f"✨ Excelente opción{brand_text}{rating_text}\n\n"
+        
+        response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
         return response
 
     def answer_tech_question(self, question: str, context: str = "") -> str:

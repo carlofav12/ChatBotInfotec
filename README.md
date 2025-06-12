@@ -5,11 +5,28 @@ Chatbot inteligente modularizado desarrollado para GRUPO INFOTEC - Empresa líde
 ## ✨ Características Principales
 
 - 🧠 **IA Conversacional Avanzada** - Powered by Google Gemini AI
+- 🎯 **Recomendaciones Inteligentes** - Análisis automático de toda la BD para recomendar los mejores productos
 - 🛍️ **E-commerce Integrado** - Búsqueda y venta de productos
 - 🏗️ **Arquitectura Modular** - Código organizado y escalable
 - 💬 **Contexto Conversacional** - Memoria de conversaciones
 - 📱 **Interfaz Moderna** - UI/UX optimizada
 - 🚀 **Alto Rendimiento** - APIs rápidas y eficientes
+
+### 🆕 Nueva Funcionalidad: Recomendaciones Inteligentes
+
+El chatbot ahora incluye un sistema avanzado de recomendaciones que:
+
+- **Analiza automáticamente** hasta 50 productos de la base de datos
+- **Evalúa múltiples criterios**: precio, especificaciones, rating, compatibilidad de uso
+- **Genera recomendaciones personalizadas** basadas en la consulta específica del usuario
+- **Explica detalladamente** por qué cada producto es recomendado
+- **Se adapta al contexto** (gaming, trabajo, estudio, etc.)
+
+**Ejemplos de uso:**
+
+- "¿Cuál recomiendas?" → Análisis completo de productos disponibles
+- "¿Qué laptop es mejor para gaming?" → Recomendaciones específicas para gaming
+- "mejor computadora para trabajo" → Sugerencias optimizadas para productividad
 
 ## 🏗️ Arquitectura Modularizada
 
@@ -32,6 +49,7 @@ backend/app/chatbot/
 ## 🚀 Tecnologías Utilizadas
 
 ### Backend
+
 - **FastAPI** - Framework web moderno para APIs
 - **Google Gemini AI** - Modelo de inteligencia artificial generativa
 - **Python 3.11+** - Lenguaje de programación
@@ -40,6 +58,7 @@ backend/app/chatbot/
 - **Uvicorn** - Servidor ASGI de alto rendimiento
 
 ### Frontend
+
 - **React 19** - Biblioteca de JavaScript para interfaces de usuario
 - **TypeScript** - Superset de JavaScript con tipado estático
 - **TanStack Query** - Manejo de estado del servidor
@@ -49,6 +68,7 @@ backend/app/chatbot/
 ## 📦 Instalación y Configuración
 
 ### Prerrequisitos
+
 - Python 3.8 o superior
 - Node.js 16 o superior
 - npm o yarn
@@ -57,12 +77,14 @@ backend/app/chatbot/
 ## Ejecución
 
 ### Iniciar el Backend
+
 ```bash
 cd backend
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Iniciar el Frontend
+
 ```bash
 cd frontend
 npm start
@@ -114,11 +136,13 @@ GOOGLE_API_KEY=tu_api_key_de_google_gemini
 ## 🛠️ API Endpoints
 
 ### Principales
+
 - `POST /api/chat` - Enviar mensaje al chatbot
 - `GET /api/history` - Obtener historial de conversación
 - `POST /api/clear-history` - Limpiar historial
 - `GET /api/stats` - Obtener estadísticas de uso
 
 ### Utilidad
+
 - `GET /health` - Verificación de salud del servicio
 - `GET /` - Información básica de la API

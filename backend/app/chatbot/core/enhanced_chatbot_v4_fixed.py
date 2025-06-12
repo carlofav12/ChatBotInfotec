@@ -184,6 +184,155 @@ class EnhancedInfotecChatbotV4:
         )
         
         return bot_response, comparison_data_list, None
+    
+    def _handle_intelligent_recommendation_request(self, entities: Dict[str, Any], db: Session) -> tuple:
+        """Manejar solicitud de recomendación inteligente usando IA para analizar toda la BD"""
+        logger.info("Procesando solicitud de recomendación inteligente")
+        
+        category = entities.get("categoria_recomendacion") or entities.get("producto")
+        use_case = entities.get("uso")
+        original_query = entities.get("_original_message", "recomendación de productos")
+        
+        # Obtener todos los productos relevantes para análisis
+        candidate_products = self.product_service.get_all_products_for_recommendation(
+            db, 
+            category=category, 
+            use_case=use_case,
+            limit=50  # Analizar hasta 50 productos
+        )
+        
+        if not candidate_products:
+            bot_response = f"""💡 **Lo siento, no tengo productos disponibles en este momento.**
+
+🔍 **Lo que puedo hacer:**
+• Consultar productos específicos por nombre
+• Ayudarte con categorías específicas como laptops, PCs, componentes
+• Conectarte con nuestros especialistas
+
+¿Te gustaría que busque algo más específico? 😊"""
+            return bot_response, []
+        
+        # Convertir productos a formato dict para el LLM
+        products_for_llm = []
+        for product in candidate_products:
+            product_dict = {
+                "name": product.name,
+                "price": product.price,
+                "description": product.description,
+                "brand": product.brand,
+                "rating": product.rating,
+                "stock_quantity": product.stock_quantity
+            }
+            
+            # Añadir especificaciones si existen
+            if hasattr(product, 'specifications') and product.specifications:
+                if isinstance(product.specifications, dict):
+                    product_dict["specifications"] = product.specifications
+                else:
+                    product_dict["specifications"] = {"details": str(product.specifications)}
+            
+            products_for_llm.append(product_dict)
+        
+        # Usar IA para analizar y recomendar los mejores productos
+        try:
+            bot_response = self.llm_service.recommend_top_products(
+                candidate_products=products_for_llm,
+                user_query=original_query,
+                category=category,
+                use_case=use_case,
+                count=3  # Recomendar top 3
+            )
+            
+            # Devolver los productos recomendados (primeros 3-5 para mostrar en la UI)
+            recommended_products = candidate_products[:5]
+            
+        except Exception as e:
+            logger.error(f"Error en recomendación inteligente: {e}")            # Fallback: usar formatter tradicional con los mejores productos por rating
+            sorted_products = sorted(candidate_products, key=lambda x: (x.rating or 0, -x.price), reverse=True)
+            recommended_products = sorted_products[:3]
+            bot_response = f"""🎯 **Mis 3 mejores recomendaciones:**
+
+"""
+            for i, product in enumerate(recommended_products, 1):
+                discount = ""
+                if product.original_price and product.original_price > product.price:
+                    discount_pct = int(((product.original_price - product.price) / product.original_price) * 100)
+                    discount = f" 🏷️ **{discount_pct}% DESC**"
+                
+                # Generar descripción concisa
+                features = []
+                if hasattr(product, 'brand') and product.brand:
+                    features.append(f"marca {product.brand}")
+                if product.rating and product.rating > 0:
+                    features.append(f"rating {product.rating}/5")
+                
+                feature_text = f" - {', '.join(features[:2])}" if features else ""
+                
+                bot_response += f"""**{i}. {product.name}** (S/ {product.price}){discount}
+✨ Excelente opción{feature_text}
+
+"""
+            
+            bot_response += "💡 ¿Te interesa alguna? ¡Puedo darte más detalles! 😊"
+        
+        return bot_response, recommended_products
+
+    def _handle_tech_question(self, entities: Dict[str, Any], db: Session) -> tuple:
+        """Manejar preguntas tecnológicas generales usando IA"""
+        logger.info("Procesando pregunta tecnológica general")
+        
+        original_question = entities.get("_original_message", "pregunta tecnológica")
+        question_type = entities.get("tipo_pregunta", "general")
+        
+        try:            # Usar el LLM para responder preguntas tecnológicas generales
+            bot_response = self.llm_service.answer_tech_question(
+                question=original_question,
+                context=f"Tipo de pregunta: {question_type}"
+            )
+            
+            # No devolver productos específicos para preguntas generales
+            return bot_response, []
+            
+        except Exception as e:
+            logger.error(f"Error procesando pregunta tecnológica: {e}")
+            
+            # Respuesta de fallback para preguntas tecnológicas
+            if question_type == "laptop_vs_pc":
+                bot_response = """💡 **Laptop vs PC - Guía rápida:**
+
+**💻 Laptops (Portátiles):**
+✅ Portabilidad y movilidad
+✅ Menor consumo eléctrico 
+✅ Todo integrado (pantalla, teclado, mouse)
+❌ Menor rendimiento por el precio
+❌ Más difícil de upgradar
+
+**🖥️ PCs de Escritorio:**
+✅ Mejor rendimiento por el precio
+✅ Fácil de actualizar componentes
+✅ Mejor refrigeración
+❌ Requiere espacio fijo
+❌ Mayor consumo eléctrico
+
+**🎯 Recomendación:**
+• **Para trabajo móvil/estudiantes:** Laptop
+• **Para gaming/diseño:** PC de escritorio  
+• **Para oficina fija:** Ambos funcionan bien
+
+¿Te gustaría ver nuestras opciones disponibles? 😊"""
+            else:
+                bot_response = """💡 **Consulta Tecnológica:**
+
+Gracias por tu pregunta. Para darte la mejor recomendación, necesito más detalles:
+
+🔍 **¿Podrías especificar:**
+• ¿Para qué la vas a usar? (trabajo, gaming, estudios)
+• ¿Tienes algún presupuesto en mente?
+• ¿Alguna marca de preferencia?
+
+¡Así podré ayudarte mejor! 😊"""
+            
+            return bot_response, []
 
     def _handle_product_request(self, entities: Dict[str, Any], conversation_history: List[Dict[str, Any]], 
                                db: Session, user_id: Optional[int], session_id: str) -> tuple:
@@ -203,6 +352,12 @@ class EnhancedInfotecChatbotV4:
             bot_response, products, cart_action = self._handle_add_to_cart_request(
                 entities, conversation_history, db, user_id, session_id
             )
+        
+        elif entities.get("accion") == "recomendar_categoria":
+            bot_response, products = self._handle_intelligent_recommendation_request(entities, db)
+        
+        elif entities.get("accion") == "pregunta_tecnologica":
+            bot_response, products = self._handle_tech_question(entities, db)
         
         else:
             # Búsqueda normal de productos
